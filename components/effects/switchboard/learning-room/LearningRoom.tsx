@@ -28,8 +28,18 @@ function GalleryFloor() {
   );
 }
 
+/**
+ * A painted ceiling is lit almost entirely by light bounced off the floor and walls,
+ * which the scene does not simulate. A small emissive term stands in for that bounce
+ * so the ceiling reads as white plaster rather than a grey lid, and it lifts when the
+ * downlights wash the room.
+ */
+function ceilingBounce(lightLevel: number) {
+  return 0.2 + lightLevel * 0.1;
+}
+
 /** Open timber teaching frames on all four walls. */
-export function LearningRoom() {
+export function LearningRoom({ lightLevel = 0 }: { lightLevel?: number }) {
   const { wiringView } = useGameInput();
   return (
     <group>
@@ -43,6 +53,8 @@ export function LearningRoom() {
         <planeGeometry args={[ROOM.width + 4, ROOM.depth + 4]} />
         <meshStandardMaterial
           color="#f3efe6"
+          emissive="#f6f1e7"
+          emissiveIntensity={ceilingBounce(lightLevel)}
           roughness={0.95}
           metalness={0}
           envMapIntensity={0.3}

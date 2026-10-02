@@ -2,11 +2,26 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { DoorOpen, Gamepad2, Play } from 'lucide-react';
+import { Cable, DoorOpen, Gamepad2, Lightbulb, Play, ShieldCheck } from 'lucide-react';
 import { HeroScene } from '@/components/effects/hero-scene';
+import { RoomPoster } from '@/components/effects/room-poster';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useCoarsePointer } from '@/lib/hooks';
+import { useCoarsePointer, useMediaQuery } from '@/lib/hooks';
+
+const HIGHLIGHTS = [
+  { icon: Lightbulb, text: 'Flip switches and dimmers' },
+  { icon: ShieldCheck, text: 'Open the board and test an RCD' },
+  { icon: Cable, text: 'Follow the cabling inside the walls' },
+];
+
+/** Live preview only where it is cheap: a desktop pointer, a wide screen and no Save-Data. */
+const LIVE_PREVIEW_QUERY = '(hover: hover) and (pointer: fine) and (min-width: 1024px)';
+
+function prefersSavingData() {
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+  return connection?.saveData === true;
+}
 
 // Fullscreen must escape the page's animated/isolated stacking contexts.
 function RoomPortal({ active, children }: { active: boolean; children: ReactNode }) {
@@ -48,10 +63,31 @@ function RoomPortal({ active, children }: { active: boolean; children: ReactNode
  */
 export default function SwitchboardShowcase() {
   const [explore, setExplore] = useState(false);
+  // Latched: once WebGL is created it stays mounted so exiting keeps the room's state.
+  const [live, setLive] = useState(false);
   const { coarse } = useCoarsePointer();
+  const livePreview = useMediaQuery(LIVE_PREVIEW_QUERY);
   const stageRef = useRef<HTMLDivElement>(null);
   const roomRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (live || !livePreview || !stage || prefersSavingData()) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) setLive(true);
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [live, livePreview]);
+
+  const enter = () => {
+    setLive(true);
+    setExplore(true);
+  };
 
   useEffect(() => {
     if (!explore) return;
@@ -114,19 +150,30 @@ export default function SwitchboardShowcase() {
     <section
       id="switchboard-showcase"
       className="w-full max-w-[100vw] border-y border-border/40 bg-gradient-to-b from-background via-background to-muted/20"
-      aria-label="Walk the 3D Electrical Installation"
+      aria-labelledby="switchboard-showcase-title"
     >
-      <div className="container max-w-3xl px-4 py-6 text-center sm:py-8">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-          Explore the installation
+      <div className="container max-w-4xl py-10 text-center sm:py-14">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+          Interactive installation
         </p>
-        <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          A home, connected.
+        <h2
+          id="switchboard-showcase-title"
+          className="display-md font-display font-bold tracking-tight text-foreground text-balance"
+        >
+          Walk through a wired home
         </h2>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          Step inside. Switch on a light, follow the wiring, and see how the switchboard brings it
-          all together.
+        <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
+          A kitchen and lounge built the way I’d wire yours. Use the fittings, open the switchboard
+          and see where every cable runs.
         </p>
+        <ul className="mt-6 flex flex-col items-center justify-center gap-x-6 gap-y-2 text-sm text-foreground/85 sm:flex-row sm:flex-wrap">
+          {HIGHLIGHTS.map(({ icon: Icon, text }) => (
+            <li key={text} className="flex items-center gap-2 whitespace-nowrap">
+              <Icon className="h-4 w-4 text-primary" aria-hidden />
+              {text}
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div
@@ -134,6 +181,7 @@ export default function SwitchboardShowcase() {
         data-room-stage
         className="relative isolate min-h-[min(82vh,920px)] w-full overflow-x-clip overflow-y-hidden touch-pan-y sm:min-h-[min(78vh,840px)]"
       >
+        <RoomPoster />
         <RoomPortal active={explore}>
           <div
             ref={roomRef}
@@ -151,17 +199,19 @@ export default function SwitchboardShowcase() {
               )}
               aria-hidden={!explore}
             >
-              <HeroScene
-                observeId="switchboard-showcase"
-                controlsEnabled={explore}
-                onExit={() => setExplore(false)}
-                className={cn(
-                  '!relative h-full max-w-full',
-                  explore
-                    ? 'min-h-0 touch-none'
-                    : 'min-h-[min(82vh,920px)] touch-pan-y sm:min-h-[min(78vh,840px)]'
-                )}
-              />
+              {live && (
+                <HeroScene
+                  observeId="switchboard-showcase"
+                  controlsEnabled={explore}
+                  onExit={() => setExplore(false)}
+                  className={cn(
+                    '!relative h-full max-w-full',
+                    explore
+                      ? 'min-h-0 touch-none'
+                      : 'min-h-[min(82vh,920px)] touch-pan-y sm:min-h-[min(78vh,840px)]'
+                  )}
+                />
+              )}
             </div>
 
             {explore ? (
@@ -179,29 +229,29 @@ export default function SwitchboardShowcase() {
                 </Button>
               </div>
             ) : (
-              <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-end gap-3 bg-gradient-to-t from-black/55 via-transparent to-transparent px-4 pb-10">
+              <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-end gap-3 bg-gradient-to-t from-black/60 via-black/5 to-transparent px-4 pb-10 sm:pb-12">
                 <div className="pointer-events-auto">
                   <Button
                     data-room-enter
                     type="button"
                     size="lg"
                     variant="default"
-                    className="chrome-border min-h-12 touch-manipulation gap-2 px-6 shadow-xl"
+                    className="gradient-bg min-h-12 touch-manipulation gap-2 px-7 text-base font-semibold text-primary-foreground shadow-glow"
                     aria-haspopup="dialog"
-                    onClick={() => setExplore(true)}
+                    onClick={enter}
                   >
                     <Play className="h-4 w-4 fill-current" />
                     Enter the room
                   </Button>
                 </div>
-                <p className="flex items-center gap-1.5 rounded-lg bg-background/80 px-3 py-1.5 text-[11px] text-muted-foreground shadow-sm backdrop-blur-sm">
+                <p className="flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-xs text-white/90 backdrop-blur-sm">
                   {coarse ? (
                     <>
-                      <Gamepad2 className="h-3.5 w-3.5" />
-                      Touch · drag to look · tap fittings
+                      <Gamepad2 className="h-3.5 w-3.5" aria-hidden />
+                      Stick to walk · drag to look · tap fittings
                     </>
                   ) : (
-                    <>Keyboard · WASD walk · drag to look · F use</>
+                    <>WASD to walk · drag to look · click or F to use</>
                   )}
                 </p>
               </div>

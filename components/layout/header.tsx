@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X, Code, Wrench, Building2, Globe } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Button } from '@/components/ui/button';
 import { BrandMark } from '@/components/layout/brand-mark';
 import { useScrollPosition } from '@/lib/hooks';
 import { mainNav, megaMenuSections, megaMenuAllLinks } from '@/lib/navigation';
@@ -69,26 +70,29 @@ export default function Header() {
       }}
       className={cn(
         'sticky top-0 z-40 w-full border-b border-border/50 bg-background/90 backdrop-blur-md transition-shadow duration-300 pt-[env(safe-area-inset-top)]',
-        isScrolled && 'shadow-glow'
+        isScrolled && 'shadow-[0_10px_30px_-18px_rgb(0_0_0/0.45)]'
       )}
     >
       <div className="container flex h-16 items-center justify-between">
         <BrandMark className="pr-3" />
 
         <nav className="hidden lg:flex items-center gap-1" aria-label="Main navigation">
-          {mainNav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive(item.href) ? 'page' : undefined}
-              className={cn(
-                'rounded-md px-3 py-2 text-sm font-medium transition-colors hover:text-primary',
-                isActive(item.href) ? 'text-primary bg-primary/10' : 'text-muted-foreground'
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {/* Contact is the quote button below, so it is not repeated as a link. */}
+          {mainNav
+            .filter((item) => item.href !== '/contact')
+            .map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={isActive(item.href) ? 'page' : undefined}
+                className={cn(
+                  'rounded-md px-3 py-2 text-sm font-medium transition-colors hover:text-primary',
+                  isActive(item.href) ? 'text-primary bg-primary/10' : 'text-muted-foreground'
+                )}
+              >
+                {item.label}
+              </Link>
+            ))}
           <button
             ref={megaToggleRef}
             type="button"
@@ -104,6 +108,15 @@ export default function Header() {
             Explore
           </button>
           <ThemeToggle />
+          <Button
+            asChild
+            size="sm"
+            className="ml-1 gradient-bg font-semibold text-primary-foreground shadow-sm hover:opacity-95"
+          >
+            <Link href="/contact" aria-current={isActive('/contact') ? 'page' : undefined}>
+              Get a quote
+            </Link>
+          </Button>
         </nav>
 
         <div className="flex items-center gap-2 lg:hidden">
@@ -178,6 +191,15 @@ export default function Header() {
           className="absolute inset-x-0 lg:hidden border-b border-t border-border/50 bg-background shadow-xl max-h-[calc(100dvh-4rem-env(safe-area-inset-top))] overflow-y-auto overscroll-contain"
         >
           <nav className="container py-4 space-y-1" aria-label="Mobile navigation">
+            <Button
+              asChild
+              size="lg"
+              className="mb-3 w-full gradient-bg font-semibold text-primary-foreground"
+            >
+              <Link href="/contact" onClick={() => setIsMobileMenuOpen(false)}>
+                Get a quote
+              </Link>
+            </Button>
             {mainNav.map((item) => (
               <Link
                 key={item.href}

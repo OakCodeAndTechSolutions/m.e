@@ -226,6 +226,10 @@ export function LoungeRun({
   const zFront = ROOM.depth - cab.depth;
   const gpo = FIXTURES.loungeGpo;
   const tv = FIXTURES.tv;
+  const cabEnd = cab.x + cab.w;
+  // The GPO is turned to face the room, so its supply outlet (local -x) sits at +x.
+  const plugX = gpo.x + 0.029;
+  const plugZ = gpo.z - 0.03;
 
   return (
     <group>
@@ -238,15 +242,18 @@ export function LoungeRun({
       <group position={[gpo.x, gpo.y, gpo.z]} rotation={[0, Math.PI, 0]}>
         <SwitchedPowerPoint on={socketOn} onToggle={onToggleSocket} hitId="tvGpo" />
       </group>
+      {/* TV lead: along the back of the unit, over its end, and a short drop to the plug. */}
       <PathWire
         points={[
           [tv.x + 0.56, cab.h + 0.2, ROOM.depth - 0.07],
           [tv.x + 0.64, cab.h + 0.05, ROOM.depth - 0.05],
           [tv.x + 0.7, cab.h + 0.014, ROOM.depth - 0.042],
-          [gpo.x - 0.22, cab.h + 0.012, ROOM.depth - 0.038],
-          [gpo.x - 0.04, cab.h + 0.02, ROOM.depth - 0.032],
-          [gpo.x + 0.02, gpo.y + 0.05, ROOM.depth - 0.022],
-          [gpo.x, gpo.y - 0.006, ROOM.depth - 0.014],
+          [cabEnd - 0.03, cab.h + 0.012, ROOM.depth - 0.038],
+          [cabEnd + 0.025, cab.h - 0.035, ROOM.depth - 0.034],
+          [cabEnd + 0.08, 0.17, ROOM.depth - 0.03],
+          [plugX - 0.06, 0.13, plugZ],
+          [plugX, gpo.y - 0.07, plugZ],
+          [plugX, gpo.y - 0.024, plugZ],
         ]}
         radius={0.006}
         material={flex}

@@ -27,7 +27,7 @@ export default function TrustStrip() {
       aria-label="Credentials"
     >
       <div className="container">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-8">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
           {items.map((item) => (
             <div key={item.title} className="flex items-start gap-4">
               <div className="shrink-0 rounded-lg bg-primary/10 p-2.5">

@@ -155,7 +155,9 @@ function LearningSceneInner({ controlsEnabled, onExit, onDprChange }: Props) {
     <>
       <ScenePerformance onDprChange={onDprChange} />
       <GalleryLighting />
-      <LearningRoom />
+      <LearningRoom
+        lightLevel={((lightsOn ? 1 : 0) + (loungeLightLive ? play.loungeDimmer : 0)) / 2}
+      />
       <group
         position={[BOARD_MOUNT.x, BOARD_MOUNT.y, BOARD_MOUNT.z]}
         rotation={[0, BOARD_MOUNT.rotY, 0]}

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Zap, Code } from 'lucide-react';
+import { ArrowDown, ArrowRight, Zap, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 
@@ -66,6 +66,24 @@ export default function ImmersiveHero() {
             </Link>
           </Button>
         </motion.div>
+
+        <motion.a
+          href="#switchboard-showcase"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.45, duration: 0.5 }}
+          className="group inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <span className="relative flex h-2 w-2" aria-hidden>
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60 motion-reduce:animate-none" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+          </span>
+          Or walk through a wired home I built in 3D
+          <ArrowDown
+            className="h-4 w-4 transition-transform group-hover:translate-y-0.5"
+            aria-hidden
+          />
+        </motion.a>
       </div>
     </section>
   );

@@ -147,7 +147,8 @@ export const FIXTURES = {
   loungeDimmerB: { x: 1.22, y: HEIGHTS.switch, z: ROOM.depth - 0.006 },
   loungeSconce1: { x: 1.38, y: HEIGHTS.light, z: ROOM.depth - 0.022 },
   loungeSconce2: { x: 4.62, y: HEIGHTS.light, z: ROOM.depth - 0.022 },
-  loungeGpo: { x: 4.58, y: 1.18, z: ROOM.depth - 0.006 },
+  /** Low double beside the TV unit, so the lead drops behind the cabinet, not across the wall. */
+  loungeGpo: { x: 3.98, y: HEIGHTS.gpo, z: ROOM.depth - 0.006 },
   /** Centre of the TV panel, sitting on the media unit. */
   tv: { x: 2.92, y: 0.875, z: ROOM.depth - 0.15 },
 } as const;
