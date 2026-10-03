@@ -122,9 +122,8 @@ export default function Footer() {
       <div className="border-t border-border/50 bg-surface-0/80">
         <div className="container py-4">
           <p className="text-center text-xs text-muted-foreground">
-            ABN: 48 113 774 962 | Legal Disclosure: In accordance with the Bankruptcy Act 1966,
-            please be advised that the proprietor, Richard (Ricky) Oakley, is an undischarged
-            bankrupt.
+            OakCodeAndTechSolutions is a trading name of Richard Steven Oakley (ABN 48 113 774
+            962), who is an undischarged bankrupt under the Bankruptcy Act 1966 (Cth).
           </p>
         </div>
       </div>
