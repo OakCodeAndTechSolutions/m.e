@@ -117,11 +117,13 @@ export function usePlayerInput({
         closeCover,
         dismissEntryHint,
       } = latest.current;
-      const target = e.target as HTMLElement | null;
+      const target = e.target instanceof Element ? e.target : null;
       if (e.code !== 'Escape') {
         if (target?.closest('input, select, textarea, [contenteditable="true"]')) return;
-        // Preserve native button activation without trapping movement after navigation.
-        if (target?.closest('button') && (e.code === 'Enter' || e.code === 'Space')) return;
+        // Preserve native button/link activation without trapping movement after navigation.
+        if (target?.closest('button, a[href]') && (e.code === 'Enter' || e.code === 'Space')) {
+          return;
+        }
       }
       if (e.code === 'Escape') {
         e.preventDefault();

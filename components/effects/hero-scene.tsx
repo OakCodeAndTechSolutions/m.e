@@ -3,22 +3,12 @@
 import { Component, Suspense, useEffect, useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { cn } from '@/lib/utils';
+import { RoomPoster } from './room-poster';
 
 const HeroSceneCanvas = dynamic(() => import('./hero-scene-canvas'), {
   ssr: false,
-  loading: () => <HeroSceneFallback />,
+  loading: () => <RoomPoster />,
 });
-
-function HeroSceneFallback() {
-  return (
-    <div
-      className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,#e4e4e7_0%,#d4d4d8_70%)]"
-      aria-hidden
-    >
-      <div className="absolute inset-0 opacity-20 retro-grid" />
-    </div>
-  );
-}
 
 class SceneErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -28,14 +18,18 @@ class SceneErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
   render() {
     if (!this.state.failed) return this.props.children;
     return (
-      <div
-        className="absolute inset-0 grid place-content-center bg-zinc-200 p-6 text-center text-zinc-800"
-        role="status"
-      >
-        <p>The room could not load.</p>
-        <button type="button" className="mt-3 underline" onClick={() => window.location.reload()}>
-          Reload page
-        </button>
+      <div className="absolute inset-0" role="status">
+        <RoomPoster />
+        <div className="absolute inset-0 grid place-content-center bg-black/55 p-6 text-center text-white">
+          <p className="font-medium">The interactive room couldn’t load on this device.</p>
+          <button
+            type="button"
+            className="mx-auto mt-3 min-h-11 rounded-md px-4 underline underline-offset-4"
+            onClick={() => window.location.reload()}
+          >
+            Reload page
+          </button>
+        </div>
       </div>
     );
   }
@@ -92,12 +86,16 @@ export function HeroScene({
 
   return (
     <div
-      className={cn('absolute inset-0 max-w-full overflow-hidden touch-pan-y', className)}
+      // Look-drags cross the HUD; they must never start a text selection.
+      className={cn(
+        'absolute inset-0 max-w-full select-none overflow-hidden touch-pan-y',
+        className
+      )}
       aria-hidden={!controlsEnabled}
       style={{ pointerEvents: controlsEnabled ? 'auto' : 'none' }}
     >
       <SceneErrorBoundary>
-        <Suspense fallback={<HeroSceneFallback />}>
+        <Suspense fallback={<RoomPoster />}>
           {requested || controlsEnabled ? (
             <HeroSceneCanvas
               active={pageVisible && (controlsEnabled || visible)}
@@ -105,7 +103,7 @@ export function HeroScene({
               onExit={onExit}
             />
           ) : (
-            <HeroSceneFallback />
+            <RoomPoster />
           )}
         </Suspense>
       </SceneErrorBoundary>

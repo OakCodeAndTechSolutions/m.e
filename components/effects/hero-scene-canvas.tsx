@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
-import { useGLTF } from '@react-three/drei';
+import { useGLTF, useProgress } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { ACESFilmicToneMapping, PCFShadowMap } from 'three';
 import { preloadModulePaths } from './switchboard/assets/module-assets';
@@ -16,6 +16,9 @@ import { ShockOverlay } from './switchboard/learning-room/ShockOverlay';
 import { preloadRoomModelPaths } from './switchboard/learning-room/room-assets';
 import { preloadKeptGltf } from './switchboard/learning-room/useKeptGltf';
 import { IDLE_CAMERA } from './switchboard/learning-room/room-layout';
+import { RoomObjectives } from './switchboard/learning-room/RoomObjectives';
+import { RoomPoster } from './room-poster';
+import { cn } from '@/lib/utils';
 
 for (const path of preloadModulePaths()) {
   useGLTF.preload(path);
@@ -28,6 +31,68 @@ interface HeroSceneCanvasProps {
   active?: boolean;
   controlsEnabled?: boolean;
   onExit?: () => void;
+}
+
+/**
+ * Holds the poster over the canvas until the scene has mounted and the loaders are idle,
+ * then fades away once. Later loads (the wiring cutaway) never bring it back.
+ * Subscribes to loader progress here so the Canvas tree does not re-render per asset.
+ */
+function RoomLoadingOverlay({
+  sceneReady,
+  showStatus,
+}: {
+  sceneReady: boolean;
+  /** The preview's poster already stands in; progress only matters once someone has entered. */
+  showStatus: boolean;
+}) {
+  const { active, progress } = useProgress();
+  const [revealed, setRevealed] = useState(false);
+  const [gone, setGone] = useState(false);
+
+  useEffect(() => {
+    if (revealed || !sceneReady || active) return;
+    // Loaders go briefly idle between files; wait for a quiet moment before revealing.
+    const timer = window.setTimeout(() => setRevealed(true), 350);
+    return () => window.clearTimeout(timer);
+  }, [revealed, sceneReady, active]);
+
+  useEffect(() => {
+    if (!revealed) return;
+    const timer = window.setTimeout(() => setGone(true), 600);
+    return () => window.clearTimeout(timer);
+  }, [revealed]);
+
+  if (gone) return null;
+  const percent = Math.round(Math.min(progress, 99));
+  return (
+    <div
+      className={cn(
+        // Above the canvas, below the Enter button (z-10 in the showcase) and the room HUD.
+        'pointer-events-none absolute inset-0 z-[5] transition-opacity duration-500',
+        revealed ? 'opacity-0' : 'opacity-100'
+      )}
+    >
+      <RoomPoster />
+      {showStatus && (
+        <div
+          role="status"
+          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-3 rounded-full bg-black/70 px-4 py-2 text-xs font-medium text-white shadow-lg backdrop-blur-sm"
+        >
+          <span>{revealed ? 'Room ready' : 'Wiring up the room…'}</span>
+          <span className="relative h-1 w-20 overflow-hidden rounded-full bg-white/20" aria-hidden>
+            <span
+              className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-300"
+              style={{ width: `${revealed ? 100 : Math.max(percent, 6)}%` }}
+            />
+          </span>
+          <span className="w-8 tabular-nums text-white/70">
+            {revealed ? '100%' : `${percent}%`}
+          </span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function LearningCanvasScene({
@@ -105,15 +170,9 @@ export default function HeroSceneCanvas({
             />
           </Suspense>
         </Canvas>
-        {!ready && (
-          <div
-            role="status"
-            className="absolute inset-0 grid place-content-center bg-zinc-200 text-sm text-zinc-700"
-          >
-            Preparing the room…
-          </div>
-        )}
+        <RoomLoadingOverlay sceneReady={ready} showStatus={controlsEnabled} />
         <LearningHud visible={controlsEnabled} />
+        <RoomObjectives visible={controlsEnabled} />
         <MobileControls visible={controlsEnabled} />
         <CoverLicensePrompt />
         <ShockOverlay />

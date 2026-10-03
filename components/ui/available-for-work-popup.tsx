@@ -6,6 +6,8 @@ import { X, BriefcaseBusiness } from 'lucide-react';
 import { Button } from './button';
 import { cn } from '@/lib/utils';
 
+const SHOW_AT_DEPTH = 0.55;
+
 interface AvailableForWorkPopupProps {
   className?: string;
 }
@@ -23,30 +25,23 @@ export function AvailableForWorkPopup({ className }: AvailableForWorkPopupProps)
     }, 300);
   };
 
+  // Offer help once the visitor has read past the middle of the page, not on the first scroll.
   React.useEffect(() => {
-    const isDismissed = sessionStorage.getItem('availablePopupDismissed') === 'true';
+    if (isVisible || sessionStorage.getItem('availablePopupDismissed') === 'true') return;
 
     const onScroll = () => {
-      if (window.scrollY > 400 && !isDismissed) {
-        setIsVisible(true);
-      }
+      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      if (scrollable > 0 && window.scrollY / scrollable >= SHOW_AT_DEPTH) setIsVisible(true);
     };
 
     window.addEventListener('scroll', onScroll, { passive: true });
-    const initialTimer = setTimeout(() => {
-      if (!isDismissed && window.scrollY > 400) setIsVisible(true);
-    }, 2000);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isVisible]);
 
-    let dismissTimer: ReturnType<typeof setTimeout>;
-    if (isVisible) {
-      dismissTimer = setTimeout(dismissPopup, 30000);
-    }
-
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      clearTimeout(initialTimer);
-      clearTimeout(dismissTimer);
-    };
+  React.useEffect(() => {
+    if (!isVisible) return;
+    const dismissTimer = setTimeout(dismissPopup, 30000);
+    return () => clearTimeout(dismissTimer);
   }, [isVisible]);
 
   if (!isVisible) return null;

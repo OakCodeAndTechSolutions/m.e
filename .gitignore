@@ -38,3 +38,4 @@ pnpm-lock.yaml
 # Local agent configuration and browser verification output
 .codex/
 .playwright-mcp/
+.claude/launch.json
