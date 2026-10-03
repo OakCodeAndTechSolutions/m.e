@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Cpu, ExternalLink, Github, Globe, Zap, type LucideIcon } from 'lucide-react';
@@ -43,7 +44,8 @@ export function ProjectCard({ project, index }: ProjectCardProps) {
   };
   const category = CATEGORY[project.category];
   const host = siteHost(project);
-  const shownTech = project.technologies.slice(0, MAX_TECH);
+  const [showAllTech, setShowAllTech] = useState(false);
+  const shownTech = showAllTech ? project.technologies : project.technologies.slice(0, MAX_TECH);
   const hiddenTech = project.technologies.length - shownTech.length;
 
   return (
@@ -71,11 +73,15 @@ export function ProjectCard({ project, index }: ProjectCardProps) {
               </li>
             ))}
             {hiddenTech > 0 && (
-              <li
-                className="inline-flex items-center rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground"
-                title={project.technologies.slice(MAX_TECH).join(', ')}
-              >
-                +{hiddenTech} more
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setShowAllTech(true)}
+                  className="inline-flex min-h-6 items-center rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                >
+                  +{hiddenTech} more
+                  <span className="sr-only"> technologies, show all</span>
+                </button>
               </li>
             )}
           </ul>
