@@ -1,4 +1,4 @@
-import { moduleTerminalLocal } from './assets/module-assets';
+import { DIN, DIN_Z } from './din';
 
 export type Vec3 = [number, number, number];
 
@@ -28,10 +28,11 @@ const BOARD_WIDTH = POLE_SPAN + RCBO_WIDTH + SIDE_MARGIN * 2;
 export const BOARD = {
   width: BOARD_WIDTH,
   height: BOARD_HEIGHT,
-  depth: 1.7,
-  innerDepth: 1.45,
+  /** Back of the tub to the frame-side origin: a 106 mm flush box fits a 90 mm stud cavity. */
+  depth: 0.72,
   railY: 0,
-  railZ: 0.08,
+  /** Rail sits back from the door so device noses clear it (see DIN_Z). */
+  railZ: -0.12,
   mainWidth: RCBO_WIDTH,
   // Exact pole pitch — modules abut
   rcboWidth: RCBO_WIDTH,
@@ -42,16 +43,18 @@ export const BOARD = {
   firstModuleX: -POLE_SPAN / 2,
   /** Terminal bars flush on the back wall above the DIN */
   barY: 1.05,
-  barZ: -0.62,
+  barZ: -0.27,
   /**
    * Single mains TPS gland (matches Enclosure top-left knockout 0).
    * Active + neutral + earth peel from this one cable inside the board.
    */
-  mainsKnockout: [-BOARD_WIDTH / 2 + 0.22, 1.555, -0.35] as Vec3,
+  mainsKnockout: [-BOARD_WIDTH / 2 + 0.22, 1.555, -0.2] as Vec3,
   /**
    * Floor gland plate under the load side — one aligned hole per circuit (neat row).
    */
   glandPlateZ: 0.32,
+  /** Front plane of the flush-mount frame; the door sits just inside it. */
+  frontZ: 0.64,
 };
 
 export const CIRCUITS: CircuitPole[] = [
@@ -121,27 +124,46 @@ export function moduleBodyZ(): number {
   return BOARD.railZ + BOARD.moduleDepth / 2 + 0.02;
 }
 
+/**
+ * Terminal clamps in module-local space: cables enter the top/bottom faces directly
+ * under the front screws. N on the left, line/load on the right.
+ */
+function terminalLocal() {
+  const xOff = BOARD.rcboWidth * 0.235;
+  const yEnd = DIN.height / 2;
+  const z = DIN_Z.clamp;
+  return {
+    lineTop: { x: xOff, y: yEnd, z },
+    neutralTop: { x: -xOff, y: yEnd, z },
+    lineBottom: { x: xOff, y: -yEnd, z },
+    neutralBottom: { x: -xOff, y: -yEnd, z },
+  } as const;
+}
+
+/** Terminal screw X offsets on the shoulder faces, matching the cable clamps. */
+export const TERMINAL_X = { neutral: -BOARD.rcboWidth * 0.235, line: BOARD.rcboWidth * 0.235 };
+
 /** LINE (active) top cable mouth — TOP face, right side. */
 export function moduleTopTerminal(x: number): Vec3 {
-  const t = moduleTerminalLocal('rcbo').lineTop;
+  const t = terminalLocal().lineTop;
   return [x + t.x, BOARD.railY + t.y, moduleBodyZ() + t.z];
 }
 
 /** Load active bottom cable mouth — BOTTOM face, right side. */
 export function moduleBottomTerminal(x: number): Vec3 {
-  const t = moduleTerminalLocal('rcbo').lineBottom;
+  const t = terminalLocal().lineBottom;
   return [x + t.x, BOARD.railY + t.y, moduleBodyZ() + t.z];
 }
 
 /** Neutral top cable mouth — TOP face, left (N). */
 export function moduleNeutralTerminal(x: number): Vec3 {
-  const t = moduleTerminalLocal('rcbo').neutralTop;
+  const t = terminalLocal().neutralTop;
   return [x + t.x, BOARD.railY + t.y, moduleBodyZ() + t.z];
 }
 
 /** Neutral load bottom cable mouth — BOTTOM face, left (N). */
 export function moduleBottomNeutralTerminal(x: number): Vec3 {
-  const t = moduleTerminalLocal('rcbo').neutralBottom;
+  const t = terminalLocal().neutralBottom;
   return [x + t.x, BOARD.railY + t.y, moduleBodyZ() + t.z];
 }
 

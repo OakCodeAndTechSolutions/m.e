@@ -1,10 +1,9 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
-import { useGLTF, useProgress } from '@react-three/drei';
+import { useProgress } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { ACESFilmicToneMapping, PCFShadowMap } from 'three';
-import { preloadModulePaths } from './switchboard/assets/module-assets';
 import { SwitchboardProvider } from './switchboard/SwitchboardContext';
 import { CanvasPointerGate } from './switchboard/scene/CanvasPointerGate';
 import { CoverLicensePrompt } from './switchboard/learning-room/CoverLicensePrompt';
@@ -20,9 +19,6 @@ import { RoomObjectives } from './switchboard/learning-room/RoomObjectives';
 import { RoomPoster } from './room-poster';
 import { cn } from '@/lib/utils';
 
-for (const path of preloadModulePaths()) {
-  useGLTF.preload(path);
-}
 for (const path of preloadRoomModelPaths()) {
   preloadKeptGltf(path);
 }

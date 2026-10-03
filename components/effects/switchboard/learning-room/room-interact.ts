@@ -1,4 +1,11 @@
-import { BOARD_MOUNT, facingDot, nearBoard, nearestRoomInteract, type RoomInteractId } from './room-layout';
+import {
+  BOARD_MOUNT,
+  BOARD_STAND_X,
+  facingDot,
+  nearBoard,
+  nearestRoomInteract,
+  type RoomInteractId,
+} from './room-layout';
 
 export function tryRoomInteract(
   x: number,
@@ -20,7 +27,7 @@ export function tryRoomInteract(
     return true;
   }
   const facingBoard =
-    yaw === undefined || facingDot(x, z, yaw, BOARD_MOUNT.x + 0.45, BOARD_MOUNT.z) > 0.12;
+    yaw === undefined || facingDot(x, z, yaw, BOARD_STAND_X, BOARD_MOUNT.z) > 0.12;
   if (nearBoard(x, z) && facingBoard) {
     requestCoverOpen();
     return true;

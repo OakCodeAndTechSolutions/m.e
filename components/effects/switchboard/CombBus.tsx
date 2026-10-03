@@ -16,8 +16,8 @@ type Props = {
 };
 
 /**
- * Active + Neutral insulated combs above the RCBO row.
- * Flat teeth drop into TOP-face cable mouths.
+ * Active + Neutral insulated pin busbar above the RCBO row: copper pins under a green
+ * cover with yellow end caps, as on the reference boards. Pins drop into TOP-face mouths.
  */
 export function CombBus({ materials }: Props) {
   const first = rcboX(0);
@@ -41,8 +41,8 @@ export function CombBus({ materials }: Props) {
         span={span}
         spineY={activeY}
         spineZ={activeZ}
-        metal={materials.brass}
-        sleeve={materials.plasticGrey}
+        metal={materials.copper}
+        sleeve={materials.busCover}
         endCap={materials.plasticYellow}
         terminalAt={moduleTopTerminal}
         showFeedBlock
@@ -54,7 +54,7 @@ export function CombBus({ materials }: Props) {
       {/* Brass link: main LOAD → active comb feed block */}
       <mesh
         position={[first - 0.08, (activeY + mainBot[1]) * 0.5, activeZ]}
-        material={materials.brass}
+        material={materials.copper}
         castShadow={false}
       >
         <boxGeometry args={[0.014, Math.abs(activeY - mainBot[1]) * 0.72, 0.01]} />
@@ -66,9 +66,9 @@ export function CombBus({ materials }: Props) {
         span={span - 0.02}
         spineY={neutY}
         spineZ={neutZ}
-        metal={materials.combNeutralMetal}
-        sleeve={materials.plasticGrey}
-        endCap={materials.plasticBlue}
+        metal={materials.copper}
+        sleeve={materials.busCover}
+        endCap={materials.plasticYellow}
         terminalAt={moduleNeutralTerminal}
         sleeveOffsetX={-0.012}
         toothW={0.012}

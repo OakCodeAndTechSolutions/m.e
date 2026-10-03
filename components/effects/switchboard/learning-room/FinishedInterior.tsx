@@ -2,7 +2,7 @@
 
 import { RoundedBox } from '@react-three/drei';
 import { useGameInput } from './GameInputContext';
-import { ROOM } from './room-layout';
+import { BOARD_CUTOUT, ROOM } from './room-layout';
 
 type V3 = [number, number, number];
 
@@ -15,6 +15,25 @@ function Block({ at, size, color = '#e6e1d7' }: { at: V3; size: V3; color?: stri
   );
 }
 
+/**
+ * Plaster on the board wall, cut around the flush-mounted switchboard tub. The
+ * enclosure frame overlaps the cut edge, as on a real flush installation.
+ */
+function BoardWallPlaster() {
+  const { depth: d, height: h } = ROOM;
+  const { z0, z1, y0, y1 } = BOARD_CUTOUT;
+  const x = -0.008;
+  const t = 0.012;
+  return (
+    <>
+      <Block at={[x, h / 2, z0 / 2]} size={[t, h, z0]} />
+      <Block at={[x, h / 2, (z1 + d) / 2]} size={[t, h, d - z1]} />
+      <Block at={[x, y0 / 2, (z0 + z1) / 2]} size={[t, y0, z1 - z0]} />
+      <Block at={[x, (y1 + h) / 2, (z0 + z1) / 2]} size={[t, h - y1, z1 - z0]} />
+    </>
+  );
+}
+
 /** Finished plaster is a separate layer; the inspection view reveals the cavity. */
 export function FinishedInterior() {
   const { wiringView } = useGameInput();
@@ -22,7 +41,7 @@ export function FinishedInterior() {
   return (
     <group>
       <group visible={!wiringView}>
-        <Block at={[-0.008, h / 2, d / 2]} size={[0.012, h, d]} />
+        <BoardWallPlaster />
         <Block at={[w / 2, h / 2, -0.008]} size={[w, h, 0.012]} />
         <Block at={[w / 2, h / 2, d + 0.008]} size={[w, h, 0.012]} color="#b2b5a4" />
       </group>

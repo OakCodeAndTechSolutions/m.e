@@ -1,4 +1,5 @@
-import { BOARD, CIRCUITS } from '../circuit-data';
+import { BOARD, CIRCUITS, moduleBodyZ } from '../circuit-data';
+import { BOARD_METRES_PER_UNIT, DIN_Z } from '../din';
 import { circuitExitGland } from '../wiring/wire-paths';
 import type { Vec3 } from '../circuit-data';
 
@@ -37,34 +38,59 @@ export const ROOM_LOADS = {
   loungeLight: 'light-2',
 } as const;
 
-/** World scale so 13 poles read as a real consumer unit (~36 mm RCBO pitch). */
-const BOARD_SCALE = 0.23;
+/** True size: an 18 mm pole is 18 mm, so the board reads as the real equipment. */
+const BOARD_SCALE = BOARD_METRES_PER_UNIT;
 
+/**
+ * Flush-mounted in the framed wall opening: the tub sits in the cavity and only the
+ * frame (a few mm proud of the plaster) and door show. Centred at 1.5 m.
+ */
 export const BOARD_MOUNT = {
   scale: BOARD_SCALE,
   rotY: Math.PI / 2,
-  x: 0.04 + (BOARD.depth / 2) * BOARD_SCALE,
-  y: 1.22 + (BOARD.height / 2) * BOARD_SCALE,
+  x: 0.006 - BOARD.frontZ * BOARD_SCALE,
+  y: 1.5,
   z: 5.35,
 } as const;
 
-/** Face-on close-up while the enclosure cover is open — labels and rockers fill the view. */
+/**
+ * Where the player stands to use the board, in front of the wall. Proximity, facing
+ * and approach checks measure from here rather than from the flush-mounted tub.
+ */
+export const BOARD_STAND_X = 0.69;
+
+/** Device fronts, in metres in front of the mount centre. */
+export const BOARD_FACE_OFFSET = (moduleBodyZ() + DIN_Z.nose) * BOARD_SCALE;
+
+/**
+ * Face-on close-up while the enclosure cover is open. It frames the device row and its
+ * labels (not the whole enclosure) so the 18 mm devices are large enough to operate.
+ */
 export const BOARD_INSPECT = {
   fov: 42,
-  lookYBias: -0.05,
-  minDistance: 0.85,
-  widthPad: 1.06,
-  heightPad: 1.08,
+  lookYBias: -0.11 * BOARD_SCALE,
+  minDistance: 0.16,
+  width: ((CIRCUITS.length + 1) * BOARD.rcboWidth + 0.26) * BOARD_SCALE,
+  height: 1.2 * BOARD_SCALE,
 } as const;
 
 const BOARD_WORLD_W = BOARD.width * BOARD_MOUNT.scale;
 const BOARD_WORLD_H = BOARD.height * BOARD_MOUNT.scale;
-/** Framed opening in the board wall — trimmers sit just outside this. */
+
+/** Hole in the plaster for the tub; the enclosure frame covers its edges. */
+export const BOARD_CUTOUT = {
+  z0: BOARD_MOUNT.z - BOARD_WORLD_W / 2,
+  z1: BOARD_MOUNT.z + BOARD_WORLD_W / 2,
+  y0: BOARD_MOUNT.y - BOARD_WORLD_H / 2,
+  y1: BOARD_MOUNT.y + BOARD_WORLD_H / 2,
+} as const;
+
+/** Framed opening in the board wall — trimmer and sill centrelines half a stud outside the tub. */
 export const BOARD_OPENING = {
-  z0: BOARD_MOUNT.z - BOARD_WORLD_W / 2 - 0.14,
-  z1: BOARD_MOUNT.z + BOARD_WORLD_W / 2 + 0.14,
-  y0: BOARD_MOUNT.y - BOARD_WORLD_H / 2 - 0.1,
-  y1: BOARD_MOUNT.y + BOARD_WORLD_H / 2 + 0.1,
+  z0: BOARD_CUTOUT.z0 - 0.05,
+  z1: BOARD_CUTOUT.z1 + 0.05,
+  y0: BOARD_CUTOUT.y0 - 0.05,
+  y1: BOARD_CUTOUT.y1 + 0.05,
 } as const;
 
 /** Greyscale carcass sizes. Appliances are fitted to these bays. */
@@ -543,7 +569,7 @@ export function nearestRoomHint(
 }
 
 export function boardLookHint(px: number, pz: number, yaw: number): boolean {
-  const ox = BOARD_MOUNT.x + 0.45;
+  const ox = BOARD_STAND_X;
   const oz = BOARD_MOUNT.z;
   const d = Math.hypot(px - ox, pz - oz);
   if (d >= INTERACT_HINT_RANGE || nearBoard(px, pz)) return false;
@@ -635,7 +661,8 @@ export function resolveSolidPosition(x: number, z: number, pad: number): { x: nu
   let nz = Math.min(ROOM.depth - pad - 0.1, Math.max(pad + 0.22, z));
 
   const boardHalfW = (BOARD.width / 2) * BOARD_MOUNT.scale + pad;
-  const boardFront = BOARD_MOUNT.x + (BOARD.depth / 2) * BOARD_MOUNT.scale + pad * 0.25;
+  // Flush board: only the frame and door stand proud of the wall.
+  const boardFront = BOARD_MOUNT.x + (BOARD.frontZ + 0.05) * BOARD_MOUNT.scale + pad * 0.25;
   if (Math.abs(nz - BOARD_MOUNT.z) < boardHalfW && nx < boardFront) {
     nx = boardFront;
   }
@@ -712,10 +739,10 @@ export function nearPoint(px: number, pz: number, x: number, z: number, radius =
 }
 
 export function nearBoard(px: number, pz: number): boolean {
-  return nearPoint(px, pz, BOARD_MOUNT.x + 0.45, BOARD_MOUNT.z, 1.15);
+  return nearPoint(px, pz, BOARD_STAND_X, BOARD_MOUNT.z, 1.15);
 }
 
-/** Standing in front of the enclosure — close enough to tap rockers. */
+/** Standing in front of the enclosure — close enough to use the toggles. */
 export function atBoard(px: number, pz: number): boolean {
-  return nearPoint(px, pz, BOARD_MOUNT.x + 0.55, BOARD_MOUNT.z, 0.95);
+  return nearPoint(px, pz, BOARD_STAND_X + 0.1, BOARD_MOUNT.z, 0.95);
 }

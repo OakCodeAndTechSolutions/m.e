@@ -5,11 +5,11 @@ import { useFrame } from '@react-three/fiber';
 import { MathUtils, type Group } from 'three';
 
 /**
- * AU RCBO / isolator dolly: I is up.
- * Positive X tilts the top of the paddle toward the camera (ON proud at the I end).
+ * AU RCBO / isolator toggle: I is up. The handle points out of the face, so a negative
+ * X rotation lifts its tip (ON) and a positive one drops it (OFF).
  */
-export const ROCKER_ON = 0.34;
-export const ROCKER_OFF = -0.3;
+export const TOGGLE_ON = -0.5;
+export const TOGGLE_OFF = 0.5;
 
 /** Smoothly damp a group's rotation.x toward a target angle each frame. */
 export function useDampRotation(targetAngle: number, lambda = 14) {

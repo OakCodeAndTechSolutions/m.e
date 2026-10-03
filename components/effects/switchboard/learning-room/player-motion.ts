@@ -1,8 +1,9 @@
 import { MathUtils } from 'three';
-import { BOARD } from '../circuit-data';
 import {
+  BOARD_FACE_OFFSET,
   BOARD_INSPECT,
   BOARD_MOUNT,
+  BOARD_STAND_X,
   PLAYER,
   resolveOpenDoors,
   resolvePlayerPosition,
@@ -152,7 +153,7 @@ export type CameraAnchor = {
 
 /** 0 far from the board, 1 standing in front of it. */
 export function boardApproach(x: number, z: number): number {
-  const dist = Math.hypot(x - (BOARD_MOUNT.x + 0.45), z - BOARD_MOUNT.z);
+  const dist = Math.hypot(x - BOARD_STAND_X, z - BOARD_MOUNT.z);
   return 1 - MathUtils.smoothstep(dist, 0.7, 2.15);
 }
 
@@ -171,24 +172,23 @@ export function playingCameraAnchor(pose: PlayerPose, _zoomT: number): CameraAnc
     lookZ: pose.z + Math.cos(pose.yaw) * Math.cos(pitch) * 3,
   };
 }
-/** Dolly onto the enclosure face so circuit IDs and rockers are usable. */
+/** Dolly onto the enclosure face so circuit IDs and toggles are usable. */
+/** Camera distance from the board's mount centre that frames the device row. */
 export function boardInspectDistance(aspect = 16 / 9): number {
   const halfFov = MathUtils.degToRad(BOARD_INSPECT.fov) / 2;
   const tanHalf = Math.tan(halfFov);
-  const padW = BOARD.width * BOARD_MOUNT.scale * BOARD_INSPECT.widthPad;
-  const padH = BOARD.height * BOARD_MOUNT.scale * BOARD_INSPECT.heightPad;
-  const distH = padH / 2 / tanHalf;
-  const distW = padW / 2 / (tanHalf * Math.max(aspect, 0.35));
-  return Math.max(distH, distW, BOARD_INSPECT.minDistance);
+  const distH = BOARD_INSPECT.height / 2 / tanHalf;
+  const distW = BOARD_INSPECT.width / 2 / (tanHalf * Math.max(aspect, 0.35));
+  return BOARD_FACE_OFFSET + Math.max(distH, distW, BOARD_INSPECT.minDistance);
 }
 
 export function boardInspectCameraAnchor(aspect = 16 / 9): CameraAnchor {
   const dist = boardInspectDistance(aspect);
   return {
     posX: BOARD_MOUNT.x + dist,
-    posY: BOARD_MOUNT.y + 0.02,
+    posY: BOARD_MOUNT.y + 0.006,
     posZ: BOARD_MOUNT.z,
-    lookX: BOARD_MOUNT.x + 0.04,
+    lookX: BOARD_MOUNT.x + BOARD_FACE_OFFSET,
     lookY: BOARD_MOUNT.y + BOARD_INSPECT.lookYBias,
     lookZ: BOARD_MOUNT.z,
   };

@@ -15,7 +15,7 @@ import {
 
 /** Wiring plane behind the RCBO bodies — never clip through modules. */
 function behindModules(): number {
-  return -0.38;
+  return -0.25;
 }
 
 /** Clearance under module bottoms before any lateral sweep. */
@@ -116,7 +116,7 @@ export function buildWirePaths(): WirePaths {
     [earthBarScrew(1)[0], BOARD.barY + 0.1, back],
     [bondX - 0.05, BOARD.barY + 0.12, back],
     [bondX, BOARD.barY - 0.02, back],
-    [bondX, BOARD.barY - 0.25, -0.5],
+    [bondX, BOARD.barY - 0.25, -BOARD.depth / 2 + 0.04],
   ];
 
   // Main load → comb: drop below, behind, then up into feed — clear of RCBO bodies
