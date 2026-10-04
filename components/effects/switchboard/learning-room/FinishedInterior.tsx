@@ -1,6 +1,8 @@
 'use client';
 
-import { RoundedBox } from '@react-three/drei';
+import { Suspense, useMemo } from 'react';
+import { CanvasTexture, Object3D, SRGBColorSpace } from 'three';
+import { DiningSet } from './DiningSet';
 import { useGameInput } from './GameInputContext';
 import { BOARD_CUTOUT, ROOM } from './room-layout';
 
@@ -52,25 +54,20 @@ export function FinishedInterior() {
       <Block at={[w + 0.025, 0.36, 3.4]} size={[0.08, 0.72, 4.16]} />
       <Block at={[w + 0.025, 2.52, 3.4]} size={[0.08, 0.36, 4.16]} />
       <group position={[w - 0.015, 1.53, 3.4]} rotation={[0, -Math.PI / 2, 0]}>
-        {/* A softly lit garden beyond the window, built from geometry. */}
-        <mesh position={[0, 0, -0.24]}>
-          <planeGeometry args={[4.2, 1.7]} />
-          <meshBasicMaterial color={'#b9ccd0'} />
+        {/* Out-of-focus garden beyond the glass, far enough out to show parallax. */}
+        <GardenView />
+        <mesh position={[0, 0, 0.02]} raycast={() => null}>
+          <planeGeometry args={[4.16, 1.7]} />
+          <meshStandardMaterial
+            color="#dfe8ec"
+            transparent
+            opacity={0.07}
+            roughness={0.04}
+            metalness={0}
+            envMapIntensity={1.4}
+            depthWrite={false}
+          />
         </mesh>
-        <mesh position={[0, -0.65, -0.2]}>
-          <planeGeometry args={[4.2, 0.5]} />
-          <meshBasicMaterial color={'#7c8e63'} />
-        </mesh>
-        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-          <mesh
-            key={i}
-            position={[-2 + i * 0.5, -0.38 + Math.sin(i * 3) * 0.14, -0.17]}
-            scale={[0.4, 0.3, 0.04]}
-          >
-            <sphereGeometry args={[1, 12, 8]} />
-            <meshBasicMaterial color={i % 2 ? '#889775' : '#6b805e'} />
-          </mesh>
-        ))}
         {[-2.06, -0.69, 0.69, 2.06].map((x) => (
           <Block key={x} at={[x, 0, 0.025]} size={[0.045, 1.7, 0.09]} color="#333c39" />
         ))}
@@ -125,89 +122,106 @@ export function FinishedInterior() {
         </group>
       ))}
 
-      <DiningCorner />
+      <Suspense fallback={null}>
+        <DiningSet />
+      </Suspense>
     </group>
   );
 }
 
-function DiningCorner() {
+/**
+ * Daylit garden as an interior photographer sees it through a window: bright sky,
+ * a soft tree line, a timber fence and lawn, all slightly out of focus. Painted with
+ * radial gradients (not a canvas blur filter) so it renders the same in every browser.
+ */
+function paintGarden(): CanvasTexture {
+  const W = 2048;
+  const H = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2D context unavailable');
+
+  const sky = ctx.createLinearGradient(0, 0, 0, H * 0.62);
+  sky.addColorStop(0, '#dfe9f1');
+  sky.addColorStop(1, '#f6f7f2');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // Soft canopy blobs: dark core fading to the sky, like foliage out of focus.
+  let seed = 7;
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const blob = (x: number, y: number, r: number, core: string, alpha: number) => {
+    const g = ctx.createRadialGradient(x, y, r * 0.1, x, y, r);
+    g.addColorStop(0, core);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  };
+  for (let i = 0; i < 46; i++) {
+    blob(
+      rand() * W,
+      H * (0.44 + rand() * 0.12),
+      90 + rand() * 170,
+      rand() > 0.5 ? '#7d8f6a' : '#8f9e78',
+      0.55
+    );
+  }
+  for (let i = 0; i < 40; i++) {
+    blob(rand() * W, H * (0.54 + rand() * 0.06), 60 + rand() * 120, '#647654', 0.5);
+  }
+  ctx.globalAlpha = 1;
+
+  // Timber paling fence and lawn.
+  const fenceTop = H * 0.6;
+  const fence = ctx.createLinearGradient(0, fenceTop, 0, H * 0.74);
+  fence.addColorStop(0, '#a08a6f');
+  fence.addColorStop(1, '#8c775d');
+  ctx.fillStyle = fence;
+  ctx.fillRect(0, fenceTop, W, H * 0.14);
+  ctx.fillStyle = 'rgba(70,55,40,0.18)';
+  for (let x = 0; x < W; x += 34) ctx.fillRect(x, fenceTop, 3, H * 0.14);
+  const lawn = ctx.createLinearGradient(0, H * 0.74, 0, H);
+  lawn.addColorStop(0, '#93a26f');
+  lawn.addColorStop(1, '#7d8f5c');
+  ctx.fillStyle = lawn;
+  ctx.fillRect(0, H * 0.74, W, H * 0.26);
+
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function GardenView() {
+  const map = useMemo(() => paintGarden(), []);
   return (
-    <group position={[6.85, 0, 2.6]}>
-      <RoundedBox
-        args={[1.35, 0.045, 0.8]}
-        radius={0.025}
-        smoothness={3}
-        position={[0, 0.75, 0]}
-        castShadow
-        receiveShadow
-      >
-        <meshStandardMaterial color="#a88459" roughness={0.65} />
-      </RoundedBox>
-      {[-0.52, 0.52].flatMap((x) =>
-        [-0.27, 0.27].map((z) => (
-          <Block key={`${x}-${z}`} at={[x, 0.365, z]} size={[0.045, 0.73, 0.045]} color="#7a6044" />
-        ))
-      )}
-      {[-1, 1].map((side) => (
-        <group
-          key={side}
-          position={[0, 0, side * 0.76]}
-          rotation={[0, side === 1 ? 0 : Math.PI, 0]}
-        >
-          <RoundedBox
-            args={[0.44, 0.055, 0.44]}
-            radius={0.025}
-            smoothness={2}
-            position={[0, 0.46, 0]}
-            castShadow
-          >
-            <meshStandardMaterial color="#a29b86" roughness={1} />
-          </RoundedBox>
-          <RoundedBox
-            args={[0.44, 0.36, 0.045]}
-            radius={0.02}
-            smoothness={2}
-            position={[0, 0.69, 0.2]}
-            castShadow
-          >
-            <meshStandardMaterial color="#9c927b" roughness={0.95} />
-          </RoundedBox>
-          {[-0.17, 0.17].flatMap((x) =>
-            [-0.17, 0.17].map((z) => (
-              <Block
-                key={`${x}-${z}`}
-                at={[x, 0.22, z]}
-                size={[0.035, 0.44, 0.035]}
-                color="#695742"
-              />
-            ))
-          )}
-        </group>
-      ))}
-      <mesh position={[0.26, 0.88, 0]} castShadow>
-        <cylinderGeometry args={[0.065, 0.09, 0.21, 20]} />
-        <meshStandardMaterial color="#b9a18a" roughness={0.84} />
-      </mesh>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <group key={i} position={[0.26, 0.95, 0]} rotation={[0.25 * Math.sin(i * 2), i * 1.8, 0.3]}>
-          <mesh position={[0, 0.16, 0]}>
-            <cylinderGeometry args={[0.003, 0.004, 0.36, 6]} />
-            <meshStandardMaterial color="#5c6650" />
-          </mesh>
-          {[0.12, 0.24].map((y) => (
-            <mesh
-              key={y}
-              position={[0.025, y, 0]}
-              scale={[0.055, 0.025, 0.013]}
-              rotation={[0, 0, 0.6]}
-            >
-              <sphereGeometry args={[1, 10, 8]} />
-              <meshStandardMaterial color="#7d927e" roughness={0.9} />
-            </mesh>
-          ))}
-        </group>
-      ))}
-    </group>
+    <mesh position={[0, -0.35, -1.6]} raycast={() => null}>
+      <planeGeometry args={[10, 5]} />
+      <meshBasicMaterial map={map} toneMapped={false} />
+    </mesh>
+  );
+}
+
+/** Warm 3000 K pool of light under a pair of downlights. */
+function DownlightPool({ z, level }: { z: number; level: number }) {
+  const target = useMemo(() => new Object3D(), []);
+  return (
+    <>
+      <primitive object={target} position={[3.2, 0, z]} />
+      <spotLight
+        position={[3.2, ROOM.height - 0.03, z]}
+        target={target}
+        angle={1.05}
+        penumbra={1}
+        decay={2}
+        distance={7}
+        intensity={level * 14}
+        color="#ffe2bd"
+      />
+    </>
   );
 }
 
@@ -242,21 +256,12 @@ export function CeilingLights({
           </mesh>
         </group>
       ))}
-      {/* One shared pool per room; each downlight keeps its own emissive lens. */}
-      <pointLight
-        position={[3.2, ROOM.height - 0.25, 1.5]}
-        intensity={kitchenOn ? 6.4 : 0}
-        distance={6}
-        decay={2}
-        color="#ffdfb5"
-      />
-      <pointLight
-        position={[3.2, ROOM.height - 0.25, 5.5]}
-        intensity={loungeLevel * 6.4}
-        distance={6}
-        decay={2}
-        color="#ffdfb5"
-      />
+      {/*
+        One shared pool per room, aimed down like the fittings it stands for: a point
+        light near the ceiling washed the ceiling itself. Each lens stays emissive.
+      */}
+      <DownlightPool z={1.5} level={kitchenOn ? 1 : 0} />
+      <DownlightPool z={5.5} level={loungeLevel} />
     </group>
   );
 }

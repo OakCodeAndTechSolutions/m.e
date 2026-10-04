@@ -1,6 +1,5 @@
 'use client';
 
-import { Environment } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { MeshStandardMaterial } from 'three';
@@ -15,11 +14,11 @@ import { LoungeRun } from './LoungeRun';
 import { Player } from './Player';
 import { RoomWiring } from './RoomWiring';
 import { BOARD_MOUNT, BOARD_OPENING, ROOM_LOADS, type RoomInteractId } from './room-layout';
-import { POLYHAVEN } from './room-assets';
 import type { RoomLive } from './room-play';
 import { useGameInput } from './GameInputContext';
 import { CeilingLights } from './FinishedInterior';
 import { ScenePerformance } from './ScenePerformance';
+import { RoomLighting } from './RoomLighting';
 
 type Props = {
   controlsEnabled: boolean;
@@ -83,35 +82,6 @@ function LedBatten({ position, pulse }: { position: [number, number, number]; pu
   );
 }
 
-function GalleryLighting() {
-  return (
-    <>
-      <color attach="background" args={['#c5c2bb']} />
-      <fog attach="fog" args={['#c5c2bb', 18, 42]} />
-      <ambientLight intensity={0.14} />
-      <hemisphereLight args={['#e9f1f5', '#73604c', 0.4]} />
-      <directionalLight
-        position={[7.8, 2.3, 3.5]}
-        intensity={1.65}
-        castShadow
-        shadow-mapSize={[1024, 1024]}
-        shadow-camera-near={1}
-        shadow-camera-far={22}
-        shadow-camera-left={-8}
-        shadow-camera-right={8}
-        shadow-camera-top={8}
-        shadow-camera-bottom={-4}
-        shadow-bias={-0.0002}
-        color="#fff6ea"
-      />
-      <directionalLight position={[5.4, 2.4, 5]} intensity={0.2} color="#e8eef5" />
-      <Suspense fallback={null}>
-        <Environment files={POLYHAVEN.hdri} environmentIntensity={0.4} />
-      </Suspense>
-    </>
-  );
-}
-
 function LearningSceneInner({ controlsEnabled, onExit, onDprChange }: Props) {
   const { liveById, coverOpen } = useSwitchboard();
   const { play, dispatchRoom: dispatch, wiringView } = useGameInput();
@@ -154,7 +124,7 @@ function LearningSceneInner({ controlsEnabled, onExit, onDprChange }: Props) {
   return (
     <>
       <ScenePerformance onDprChange={onDprChange} />
-      <GalleryLighting />
+      <RoomLighting />
       <LearningRoom
         lightLevel={((lightsOn ? 1 : 0) + (loungeLightLive ? play.loungeDimmer : 0)) / 2}
       />
@@ -227,7 +197,7 @@ function LearningSceneInner({ controlsEnabled, onExit, onDprChange }: Props) {
           onToggleTv={() => onInteract('tv')}
         />
       </Suspense>
-      <AboutPortraits lightsOn={lightsOn} />
+      <AboutPortraits />
       <Player
         enabled={controlsEnabled}
         onExit={onExit}

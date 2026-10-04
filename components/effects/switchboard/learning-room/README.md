@@ -77,3 +77,23 @@ library (also used by Next.js). Textures are capped at 1024px, the environment i
 512px, and unused GLB buffer data is stripped. Geometry, names and hinge coordinates
 are preserved. Original assets and attribution stay in their existing locations.
 Wiring-only wall textures load when the cutaway is first requested.
+
+Lighting is built like a daylit interior photograph rather than a gallery rig
+(`RoomLighting.tsx`): an area light fills the glazing with sky light, a shadowed
+sun patch enters only through the window, a second area light returns bounce onto
+the window wall, and a hemisphere light carries warm floor bounce. Reflections come
+from a small Lightformer environment (window, ceiling, back wall) instead of an
+interior HDR, so glossy surfaces stay neutral and nothing extra downloads. Switched
+fittings are real light sources: downlight pools are cone spotlights, and the up/down
+wall lights (`WallLight.tsx`) each carry a dimmable point light.
+
+`RoomPostFx.tsx` adds screen-space ambient occlusion (N8AO, half resolution) and
+Khronos Neutral tone mapping. The AO radius follows the view: most of a metre for the
+room, a few centimetres once the switchboard door is open. Touch devices get the
+cheaper AO preset and no MSAA. The renderer's own AgX tone mapping is a fallback only.
+
+Furniture added in code (`DiningSet.tsx`, the framed prints in `AboutPortraits.tsx`,
+the garden beyond the glass) is procedural. The kiara HDR, sconce model, site paper
+and plywood textures are no longer loaded at runtime. After changing the room,
+recapture `public/images/room-poster.jpg` (1905 × 840) from the idle camera so the
+first paint matches the live scene.

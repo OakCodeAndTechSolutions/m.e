@@ -1,6 +1,5 @@
 /** Real CC-BY product models. Sources: public/models/learning-room/CREDITS.md */
 export const ROOM_GLB = {
-  sconce: '/models/learning-room/optimized/sconce.glb?v=21',
   cabinetDrawers: '/models/learning-room/real/cabinet-drawers.glb?v=8',
   /** Modular kitchen cupboard kit — one closed two-door unit per bay. */
   cabinetDoors: '/models/learning-room/real/cabinets-modular.glb?v=3',
@@ -34,7 +33,6 @@ export const ROOM_GLB = {
 
 /** Models in the idle camera. Pliers load when the player enters. Unused cabinet GLBs stay off this list. */
 const IDLE_ROOM_MODELS = [
-  ROOM_GLB.sconce,
   ROOM_GLB.fridge,
   ROOM_GLB.oven,
   ROOM_GLB.cooktop,
@@ -61,7 +59,6 @@ export function preloadRoomModelPaths(): string[] {
 
 /** Poly Haven CC0 materials / HDRI — same source as the pliers. */
 export const POLYHAVEN = {
-  hdri: '/models/learning-room/optimized/polyhaven/hdri/kiara_interior_2k.hdr',
   tiles: {
     diff: '/models/learning-room/optimized/polyhaven/textures/tiles/long_white_tiles_diff_2k.jpg',
     nor: '/models/learning-room/optimized/polyhaven/textures/tiles/long_white_tiles_nor_gl_2k.jpg',
@@ -112,16 +109,5 @@ export const POLYHAVEN = {
     nor: '/models/learning-room/optimized/ambientcg/foil-001/normal.jpg',
     rough: '/models/learning-room/optimized/ambientcg/foil-001/roughness.jpg',
     metal: '/models/learning-room/optimized/ambientcg/foil-001/metalness.jpg',
-  },
-  /** ambientCG Paper004 — site printouts on the frame. */
-  sitePaper: {
-    diff: '/models/learning-room/optimized/ambientcg/paper-004/color.jpg',
-    nor: '/models/learning-room/optimized/ambientcg/paper-004/normal.jpg',
-    rough: '/models/learning-room/optimized/ambientcg/paper-004/roughness.jpg',
-  },
-  plywood: {
-    diff: '/models/learning-room/optimized/polyhaven/textures/plywood/plywood_diff_1k.jpg',
-    nor: '/models/learning-room/optimized/polyhaven/textures/plywood/plywood_nor_gl_1k.jpg',
-    arm: '/models/learning-room/optimized/polyhaven/textures/plywood/plywood_arm_1k.jpg',
   },
 } as const;

@@ -52,7 +52,8 @@ export const BOARD = {
   /**
    * Floor gland plate under the load side — one aligned hole per circuit (neat row).
    */
-  glandPlateZ: 0.32,
+  /** Floor gland plate centre: behind the escutcheon, under the device row. */
+  glandPlateZ: 0.2,
   /** Front plane of the flush-mount frame; the door sits just inside it. */
   frontZ: 0.64,
 };
