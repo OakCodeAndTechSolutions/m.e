@@ -1,56 +1,44 @@
 # Learning-room models
 
-These are real third-party product models, CC Attribution. Downloaded from the
+Real third-party product models, CC Attribution 4.0, downloaded from the
 [Objaverse](https://huggingface.co/datasets/allenai/objaverse) mirror of Sketchfab.
+Each original sits under `real/`; the runtime copy under `optimized/real/` is resized
+and repacked by `scripts/optimize-room-assets.mjs` with geometry unchanged.
+Author, title and source below are taken from each model's embedded glTF metadata.
 
-| File | Model | License | Sketchfab |
+| File | Model | Author | License |
 |---|---|---|---|
-| `real/cabinet.glb` | Kitchen cabinet | CC BY 4.0 | [6ad39b0](https://sketchfab.com/3d-models/6ad39b0f52ad439ea12cbfdc1a1dd37f) |
-| `real/cabinet-drawers.glb` | Kitchen 4-drawer base | CC BY 4.0 | Objaverse / Sketchfab |
-| `real/cabinets-modular.glb` | Modular kitchen cabinets (joinery kit) | CC BY 4.0 | Objaverse / Sketchfab |
-| `real/fridge-french.glb` | French Door Refrigerator - Stainless | CC BY 4.0 | [ebe62ed](https://sketchfab.com/3d-models/french-door-refrigerator-stainless-ebe62ed6dd9b446a9c9b7d7d6a8086e7) |
-| `real/dishwasher-phoria.glb` | Whirlpool WDF330PAHS dishwasher | CC BY 4.0 | Objaverse / Sketchfab |
-| `real/dishwasher-pro.glb` | Built-in dishwasher (door, racks, plates) | CC BY 4.0 | Objaverse / Sketchfab |
-| `real/sink.glb` | Kitchen sink | CC BY 4.0 | [8bc381a](https://sketchfab.com/3d-models/8bc381a229e34834bd8e20ca6011e82f) |
-| `real/tap.glb` | Grohe tap | CC BY 4.0 | — |
-| `real/oven.glb` | Gorenje built-in oven | CC BY 4.0 | [50be709](https://sketchfab.com/3d-models/built-in-oven-50be70931dcb4a838b906382233a28f1) |
-| `real/cooktop-lutz.glb` | Induction Stove No.1 | CC BY 4.0 | [336d332](https://sketchfab.com/3d-models/induction-stove-no1-336d3327c28e4a1b905ea74f1e0b5a4b) |
-| `real/hood-poppy.glb` | Range Hood Poppy | CC BY 4.0 | [a4a16fd](https://sketchfab.com/3d-models/range-hood-poppy-a4a16fd1522a475fb38208ee0f4fbc73) |
-| `real/toaster.glb` | Smeg Toaster | CC BY 4.0 | [646838d](https://sketchfab.com/3d-models/smeg-toaster-646838d76f204c83ae952e049f2948b1) |
-| `real/gpo-double.glb` | Wall Power Outlet - Type I | CC BY 4.0 | [7153932](https://sketchfab.com/3d-models/wall-power-outlet-type-i-71539323436c4d93a1532f4cb76252a8) |
-| `real/switch.glb` | Simple Light Switch | CC BY 4.0 | [32d02fa](https://sketchfab.com/3d-models/simple-light-switch-32d02fa06d474f4db5a433aa134be612) |
-| `real/sofa-modern.glb` | Modern Couch | CC BY 4.0 | [9b1e09a](https://sketchfab.com/3d-models/modern-couch-9b1e09abe5e34d6397937ebf59901898) |
-| `real/tv-samsung.glb` | SAMSUNG TV LED | CC BY 4.0 | [8e22d78](https://sketchfab.com/3d-models/samsung-tv-led-8e22d78be5f74745a3a48be07afe35e6) |
-| `real/tv-byas.glb` | IKEA BYAS TV bench | CC BY 4.0 | [97fa056](https://sketchfab.com/3d-models/byas-97fa0565dfdd4a23a53fb3b3d17d592b) |
+| `real/fridge-french.glb` | [French Door Refrigerator - Stainless](https://sketchfab.com/3d-models/french-door-refrigerator-stainless-ebe62ed6dd9b446a9c9b7d7d6a8086e7) | [Smokahontas](https://sketchfab.com/Smokahontas) | CC BY 4.0 |
+| `real/oven.glb` | [Built-in oven](https://sketchfab.com/3d-models/built-in-oven-50be70931dcb4a838b906382233a28f1) | [3DDomino](https://sketchfab.com/3DDomino) | CC BY 4.0 |
+| `real/cooktop-lutz.glb` | [Induction Stove No.1](https://sketchfab.com/3d-models/induction-stove-no1-336d3327c28e4a1b905ea74f1e0b5a4b) | [lutz_westerfeld](https://sketchfab.com/lutzwesterfeld) | CC BY 4.0 |
+| `real/dishwasher-phoria.glb` | [Dishwasher](https://sketchfab.com/3d-models/dishwasher-dbd9076c131f4d63b7b39490c560c173) | [phoriakevin](https://sketchfab.com/phoriakevin) | CC BY 4.0 |
+| `real/hood-wall.glb` | [Range Hood (Kitchen Hood)](https://sketchfab.com/3d-models/range-hood-kitchen-hood-e846cb48e88446808af55976ff76b1da) | [govindu94](https://sketchfab.com/govindu94) | CC BY 4.0 |
+| `real/toaster.glb` | [Smeg Toaster](https://sketchfab.com/3d-models/smeg-toaster-646838d76f204c83ae952e049f2948b1) | [The Fresh Lab](https://sketchfab.com/Thefreshlab) | CC BY 4.0 |
+| `real/sink.glb` | [KOHLER Undermount Double-Bowl Kitchen Sink](https://sketchfab.com/3d-models/kohler-undermount-double-bowl-kitchen-sink-8bc381a229e34834bd8e20ca6011e82f) | [allenbranch](https://sketchfab.com/allenbranch) | CC BY 4.0 |
+| `real/tap.glb` | [Grohe G-30305000](https://sketchfab.com/3d-models/grohe-g-30305000-29403c9ff55147098e5d82ebc446d51c) | [trendforward](https://sketchfab.com/trendforward) | CC BY 4.0 |
+| `real/gpo-double.glb` | [Wall Power Outlet - Type I](https://sketchfab.com/3d-models/wall-power-outlet-type-i-71539323436c4d93a1532f4cb76252a8) | [cdcruz](https://sketchfab.com/cdcruz) | CC BY 4.0 |
+| `real/sofa-modern.glb` | [Modern Couch](https://sketchfab.com/3d-models/modern-couch-9b1e09abe5e34d6397937ebf59901898) | [Smitty__Werben](https://sketchfab.com/Smitty__Werben) | CC BY 4.0 |
+| `real/tv-samsung.glb` | [SAMSUNG TV LED](https://sketchfab.com/3d-models/samsung-tv-led-8e22d78be5f74745a3a48be07afe35e6) | [3D Share](https://sketchfab.com/3dsharesg) | CC BY 4.0 |
+| `real/tv-byas.glb` | [Byas](https://sketchfab.com/3d-models/byas-97fa0565dfdd4a23a53fb3b3d17d592b) | [BumpkinCZ](https://sketchfab.com/BumpkinCZ) | CC BY 4.0 |
 
-Sconce, 1-gang switch, cooktop isolator, rotary dimmer, and 1-gang GPO are generated in
-`sconce.glb` / `switch.glb` / `isolator.glb` / `dimmer.glb` / `gpo-single.glb` — extruded
-C2000 plates plus PVC wall boxes, white PC matched to the Type I double.
-No CC-BY AU C2000 rocker exists (`real/switch.glb` is a US toggle; do not use).
-Teaching walls are open timber (no plaster). Splash tiles stop short of the
-GPO line so kitchen TPS stays visible.
-Product models sit in the kitchen bays along z=0. The lounge on the opposite
-wall (z = room depth) uses Sketchfab CC-BY furniture (same Objaverse source as
-the kitchen) plus a Poly Haven coffee table and Type I GPO for the TV feed.
-Dimmers stay generated C2000 plates (no CC-BY AU rotary exists).
+The 1-gang switch, cooktop isolator and rotary dimmer are generated by
+`scripts/generate-learning-room-models.mjs` (`switch.glb`, `isolator.glb`,
+`dimmer.glb`): extruded C2000-style plates on PVC wall boxes, in white PC matched to
+the Type I double outlet. No CC-BY Australian C2000 rocker or rotary dimmer exists.
+The switchboard, its devices, the dining set, wall lights and framed prints are
+procedural geometry in the source and use no model files.
 
-## Poly Haven (CC0)
-
-Same source as the pliers avatar. https://polyhaven.com
+## Poly Haven and ambientCG (CC0)
 
 | File | Asset | License |
 |---|---|---|
-| `polyhaven/hdri/kiara_interior_2k.hdr` | [Kiara 1 Interior](https://polyhaven.com/a/kiara_1_interior) | CC0 |
+| `polyhaven/modern_coffee_table_01/` | [Modern Coffee Table 01](https://polyhaven.com/a/modern_coffee_table_01) | CC0 |
 | `polyhaven/textures/tiles/long_white_tiles_*_2k.jpg` | [Long White Tiles](https://polyhaven.com/a/long_white_tiles) | CC0 |
 | `polyhaven/textures/marble/marble_01_*_1k.jpg` | [Marble 01](https://polyhaven.com/a/marble_01) | CC0 |
+| `polyhaven/textures/laminate/laminate_floor_02_*_1k.jpg` | [Laminate Floor 02](https://polyhaven.com/a/laminate_floor_02) | CC0 |
+| `polyhaven/textures/knitted-fleece/knitted_fleece_*_1k.jpg` | [Knitted Fleece](https://polyhaven.com/a/knitted_fleece) | CC0 |
+| `polyhaven/textures/oak-veneer/oak_veneer_01_*_1k.jpg` | [Oak Veneer 01](https://polyhaven.com/a/oak_veneer_01) | CC0 |
+| `polyhaven/textures/pine/coated_pine_*_1k.jpg` | [Coated Pine](https://polyhaven.com/a/coated_pine) | CC0 |
 | `ambientcg/marble-015/` | [Marble 015](https://ambientcg.com/a/Marble015) | CC0 |
 | `ambientcg/wood-048/` | [Wood 048](https://ambientcg.com/a/Wood048) | CC0 |
 | `ambientcg/foil-001/` | [Foil 001](https://ambientcg.com/a/Foil001) | CC0 |
-| `ambientcg/paper-004/` | [Paper 004](https://ambientcg.com/a/Paper004) | CC0 |
-| `polyhaven/textures/laminate/laminate_floor_02_*_1k.jpg` | [Laminate Floor 02](https://polyhaven.com/a/laminate_floor_02) | CC0 |
-| `polyhaven/textures/knitted-fleece/knitted_fleece_*_1k.jpg` | [Knitted Fleece](https://polyhaven.com/a/knitted_fleece) | CC0 |
-| `polyhaven/modern_coffee_table_01/` | [Modern Coffee Table 01](https://polyhaven.com/a/modern_coffee_table_01) | CC0 |
-| `polyhaven/textures/oak-veneer/oak_veneer_01_*_1k.jpg` | [Oak Veneer 01](https://polyhaven.com/a/oak_veneer_01) | CC0 |
-| `polyhaven/textures/pine/coated_pine_*_1k.jpg` | [Coated Pine](https://polyhaven.com/a/coated_pine) | CC0 |
-| `polyhaven/textures/plywood/plywood_*_1k.jpg` | [Plywood](https://polyhaven.com/a/plywood) | CC0 |
-| `real/pliers/` | [Pliers](https://polyhaven.com/a/pliers) | CC0 |

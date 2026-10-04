@@ -73,8 +73,8 @@ gradually lower pixel density without replacing the lighting or recompiling the 
 
 `node scripts/optimize-room-assets.mjs` generates the runtime copies under
 `public/models/learning-room/optimized/`. It requires the installed `sharp` image
-library (also used by Next.js). Textures are capped at 1024px, the environment is
-512px, and unused GLB buffer data is stripped. Geometry, names and hinge coordinates
+library (also used by Next.js). Textures are capped at 1024px and unused GLB buffer
+data is stripped. Geometry, names and hinge coordinates
 are preserved. Original assets and attribution stay in their existing locations.
 Wiring-only wall textures load when the cutaway is first requested.
 

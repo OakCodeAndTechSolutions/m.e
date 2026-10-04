@@ -1,8 +1,5 @@
 /** Real CC-BY product models. Sources: public/models/learning-room/CREDITS.md */
 export const ROOM_GLB = {
-  cabinetDrawers: '/models/learning-room/real/cabinet-drawers.glb?v=8',
-  /** Modular kitchen cupboard kit — one closed two-door unit per bay. */
-  cabinetDoors: '/models/learning-room/real/cabinets-modular.glb?v=3',
   fridge: '/models/learning-room/optimized/real/fridge-french.glb?v=10',
   oven: '/models/learning-room/optimized/real/oven.glb?v=15',
   cooktop: '/models/learning-room/optimized/real/cooktop-lutz.glb?v=12',
@@ -16,8 +13,6 @@ export const ROOM_GLB = {
   roast: '/models/learning-room/optimized/kitchen/roast.glb?v=1',
   /** White double GPO plate — splash double only. */
   gpoDouble: '/models/learning-room/optimized/real/gpo-double.glb?v=8',
-  /** Generated AU 1-gang GPO for singles (fridge / DW / splash). */
-  gpoSingle: '/models/learning-room/gpo-single.glb?v=4',
   switch: '/models/learning-room/optimized/switch.glb?v=12',
   isolator: '/models/learning-room/optimized/isolator.glb?v=12',
   dimmer: '/models/learning-room/optimized/dimmer.glb?v=1',
@@ -27,11 +22,9 @@ export const ROOM_GLB = {
     '/models/learning-room/polyhaven/modern_coffee_table_01/modern_coffee_table_01_1k.gltf?v=1',
   television: '/models/learning-room/optimized/real/tv-samsung.glb?v=1',
   tvCabinet: '/models/learning-room/optimized/real/tv-byas.glb?v=1',
-  /** Poly Haven CC0 pliers — player avatar https://polyhaven.com/a/pliers */
-  pliers: '/models/learning-room/real/pliers/pliers.gltf?v=4',
 } as const;
 
-/** Models in the idle camera. Pliers load when the player enters. Unused cabinet GLBs stay off this list. */
+/** Models in the idle camera, preloaded with the page. */
 const IDLE_ROOM_MODELS = [
   ROOM_GLB.fridge,
   ROOM_GLB.oven,
@@ -57,7 +50,7 @@ export function preloadRoomModelPaths(): string[] {
   return [...IDLE_ROOM_MODELS];
 }
 
-/** Poly Haven CC0 materials / HDRI — same source as the pliers. */
+/** Poly Haven and ambientCG CC0 materials. */
 export const POLYHAVEN = {
   tiles: {
     diff: '/models/learning-room/optimized/polyhaven/textures/tiles/long_white_tiles_diff_2k.jpg',
