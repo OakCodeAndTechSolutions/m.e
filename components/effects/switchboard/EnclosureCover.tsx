@@ -1,13 +1,19 @@
 'use client';
 
+import { RoundedBox } from '@react-three/drei';
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CanvasTexture, MathUtils, SRGBColorSpace, type Group } from 'three';
 import { BOARD } from './circuit-data';
-import { onInteractiveClick, onInteractiveEnter, onInteractiveLeave } from './interaction';
+import { MM } from './din';
+import {
+  INTERACTION_REACH,
+  onInteractiveClick,
+  onInteractiveEnter,
+  onInteractiveLeave,
+} from './interaction';
 import type { SwitchboardMaterials } from './materials';
 import { useGameInput } from './learning-room/GameInputContext';
-import { INTERACTION_REACH } from './interaction';
 
 type Props = {
   materials: SwitchboardMaterials;
@@ -16,55 +22,79 @@ type Props = {
   onClose: () => void;
 };
 
-/** Outer access door. The fixed escutcheon remains behind it. */
+const OPEN_ANGLE = -1.9;
+/** Folded steel door: the return flange gives it depth at the edges. */
+const DOOR_DEPTH = 6 * MM;
+
+/**
+ * Outer access door, hinged on the left of the frame with a quarter-turn latch on the
+ * right. The fixed escutcheon remains behind it.
+ */
 export function EnclosureCover({ materials, open, onRequestOpen, onClose }: Props) {
   const { setPointerHint } = useGameInput();
   const hingeRef = useRef<Group>(null);
-  const angle = useRef(open ? -1.9 : 0);
+  const angle = useRef(open ? OPEN_ANGLE : 0);
 
-  const { width: w, height: h } = BOARD;
-  const coverZ = 0.62;
-  const panelW = w - 0.14;
-  const panelH = h - 0.18;
+  const doorW = BOARD.width + 6 * MM;
+  const doorH = BOARD.height + 6 * MM;
+  const z = BOARD.frontZ + 0.8 * MM;
 
   useFrame((_, delta) => {
-    const target = open ? -1.9 : 0;
+    const target = open ? OPEN_ANGLE : 0;
     angle.current = MathUtils.damp(angle.current, target, 6, delta);
     if (hingeRef.current) hingeRef.current.rotation.y = angle.current;
   });
 
+  const hint = (distance: number) =>
+    distance > INTERACTION_REACH
+      ? 'Walk closer to the switchboard'
+      : open
+        ? 'Close switchboard'
+        : 'Open switchboard';
+
   return (
-    <group position={[-w / 2 + 0.07, 0, coverZ]}>
+    <group position={[-doorW / 2, 0, z]}>
+      {/* Hinge knuckles stay on the frame. */}
+      {[doorH / 2 - 0.35, -doorH / 2 + 0.35].map((y) => (
+        <mesh key={y} position={[-1.5 * MM, y, 3 * MM]}>
+          <cylinderGeometry args={[2.6 * MM, 2.6 * MM, 0.26, 16]} />
+          <meshStandardMaterial color="#d9dad7" roughness={0.35} metalness={0.7} />
+        </mesh>
+      ))}
+
       <group ref={hingeRef}>
-        <mesh
+        <RoundedBox
           name="interact:board-door"
-          position={[panelW / 2, 0, 0.018]}
+          args={[doorW, doorH, DOOR_DEPTH]}
+          radius={2.5 * MM}
+          smoothness={3}
+          position={[doorW / 2, 0, DOOR_DEPTH / 2]}
           castShadow
           receiveShadow
           onClick={(e) => onInteractiveClick(e, open ? onClose : onRequestOpen)}
           onPointerOver={(e) => {
             onInteractiveEnter(e);
-            setPointerHint(
-              e.distance > INTERACTION_REACH
-                ? 'Walk closer to the switchboard'
-                : open
-                  ? 'Close switchboard'
-                  : 'Open switchboard'
-            );
+            setPointerHint(hint(e.distance));
           }}
           onPointerOut={() => {
             onInteractiveLeave();
             setPointerHint(null);
           }}
         >
-          <boxGeometry args={[panelW, panelH, 0.034]} />
-          <meshStandardMaterial color="#eceae4" roughness={0.48} metalness={0.12} />
-        </mesh>
+          <meshPhysicalMaterial
+            color="#f3f2ee"
+            roughness={0.42}
+            metalness={0.06}
+            clearcoat={0.25}
+            clearcoatRoughness={0.45}
+          />
+        </RoundedBox>
 
-        {/* Generous tap target for mobile */}
+        {/* Generous tap target for mobile while closed. */}
         {!open && (
           <mesh
-            position={[panelW / 2, 0, 0.06]}
+            visible={false}
+            position={[doorW / 2, 0, 0.06]}
             name="interact:board-open"
             onClick={(e) => {
               onInteractiveClick(e, onRequestOpen);
@@ -72,81 +102,64 @@ export function EnclosureCover({ materials, open, onRequestOpen, onClose }: Prop
             }}
             onPointerOver={(e) => {
               onInteractiveEnter(e);
-              setPointerHint(
-                e.distance > INTERACTION_REACH
-                  ? 'Walk closer to the switchboard'
-                  : 'Open switchboard'
-              );
+              setPointerHint(hint(e.distance));
             }}
             onPointerOut={() => {
               onInteractiveLeave();
               setPointerHint(null);
             }}
           >
-            <boxGeometry args={[panelW + 0.08, panelH + 0.08, 0.12]} />
-            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            <boxGeometry args={[doorW + 0.08, doorH + 0.08, 0.12]} />
           </mesh>
         )}
 
-        {/* Inner smoke panel — hides live parts when closed */}
-        {!open && (
-          <mesh position={[panelW / 2, 0, -0.004]}>
-            <boxGeometry args={[panelW - 0.04, panelH - 0.04, 0.008]} />
-            <meshStandardMaterial color="#2a2a30" roughness={0.82} metalness={0.04} />
-          </mesh>
-        )}
-
-        {!open && <DangerSticker x={panelW / 2} />}
-
-        {/* Handle */}
-        <mesh position={[panelW - 0.12, 0, 0.042]} material={materials.plasticDark}>
-          <boxGeometry args={[0.05, 0.22, 0.028]} />
-        </mesh>
-
-        {/* Corner screws */}
-        {(
-          [
-            [0.14, panelH / 2 - 0.12],
-            [0.14, -panelH / 2 + 0.12],
-            [panelW - 0.14, panelH / 2 - 0.12],
-            [panelW - 0.14, -panelH / 2 + 0.12],
-          ] as [number, number][]
-        ).map(([x, y], i) => (
-          <mesh
-            key={i}
-            position={[x, y, 0.024]}
-            rotation={[0, 0, Math.PI / 2]}
-            material={materials.screw}
-          >
-            <cylinderGeometry args={[0.022, 0.022, 0.008, 10]} />
-          </mesh>
-        ))}
+        <DoorLabel x={doorW / 2} y={doorH / 2 - 0.42} />
+        <QuarterTurnLatch x={doorW - 0.16} materials={materials} />
       </group>
     </group>
   );
 }
 
-/** Printed AS-style sticker on the door — not a click tooltip. */
-function DangerSticker({ x }: { x: number }) {
+/** Flush quarter-turn latch: chrome bezel with a screwdriver slot. */
+function QuarterTurnLatch({ x, materials }: { x: number; materials: SwitchboardMaterials }) {
+  return (
+    <group position={[x, 0, DOOR_DEPTH]}>
+      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.6 * MM]} raycast={() => null}>
+        <cylinderGeometry args={[7 * MM, 7.4 * MM, 1.2 * MM, 28]} />
+        <meshStandardMaterial color="#cfd1d4" roughness={0.25} metalness={0.9} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 1.3 * MM]} raycast={() => null}>
+        <cylinderGeometry args={[4.6 * MM, 4.6 * MM, 0.6 * MM, 24]} />
+        <meshStandardMaterial color="#9ea2a7" roughness={0.3} metalness={0.9} />
+      </mesh>
+      <mesh position={[0, 0, 1.65 * MM]} material={materials.plasticDark} raycast={() => null}>
+        <boxGeometry args={[7 * MM, 1.1 * MM, 0.4 * MM]} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Printed label on the door — a sticker, not a tooltip. */
+function DoorLabel({ x, y }: { x: number; y: number }) {
   const map = useMemo(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 256;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('2D context unavailable');
-    ctx.fillStyle = '#f1eee6';
+    ctx.fillStyle = '#f7f6f1';
     ctx.fillRect(0, 0, 512, 256);
     ctx.strokeStyle = '#18181b';
-    ctx.lineWidth = 14;
+    ctx.lineWidth = 12;
     ctx.strokeRect(10, 10, 492, 236);
     ctx.fillStyle = '#18181b';
     ctx.textAlign = 'center';
-    ctx.font = '800 52px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText('SWITCHBOARD', 256, 88);
+    ctx.font = '800 54px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText('SWITCHBOARD', 256, 92);
     ctx.font = '700 36px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText('230 V ~ 50 Hz', 256, 140);
-    ctx.font = '600 22px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText('Main switch & circuit protection', 256, 198);
+    ctx.fillText('230 V ~ 50 Hz', 256, 148);
+    ctx.font = '600 24px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText('Main switch & circuit protection inside', 256, 202);
     const texture = new CanvasTexture(canvas);
     texture.colorSpace = SRGBColorSpace;
     texture.needsUpdate = true;
@@ -154,9 +167,9 @@ function DangerSticker({ x }: { x: number }) {
   }, []);
 
   return (
-    <mesh position={[x, 0.42, 0.038]} receiveShadow>
-      <boxGeometry args={[0.72, 0.28, 0.006]} />
-      <meshStandardMaterial map={map} roughness={0.48} metalness={0.04} />
+    <mesh position={[x, y, DOOR_DEPTH + 0.2 * MM]} raycast={() => null}>
+      <planeGeometry args={[0.8, 0.4]} />
+      <meshStandardMaterial map={map} roughness={0.5} />
     </mesh>
   );
 }

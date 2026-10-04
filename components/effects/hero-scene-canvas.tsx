@@ -1,10 +1,9 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
-import { useGLTF, useProgress } from '@react-three/drei';
+import { useProgress } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import { ACESFilmicToneMapping, PCFShadowMap } from 'three';
-import { preloadModulePaths } from './switchboard/assets/module-assets';
+import { AgXToneMapping, PCFShadowMap } from 'three';
 import { SwitchboardProvider } from './switchboard/SwitchboardContext';
 import { CanvasPointerGate } from './switchboard/scene/CanvasPointerGate';
 import { CoverLicensePrompt } from './switchboard/learning-room/CoverLicensePrompt';
@@ -17,12 +16,10 @@ import { preloadRoomModelPaths } from './switchboard/learning-room/room-assets';
 import { preloadKeptGltf } from './switchboard/learning-room/useKeptGltf';
 import { IDLE_CAMERA } from './switchboard/learning-room/room-layout';
 import { RoomObjectives } from './switchboard/learning-room/RoomObjectives';
+import { RoomPostFx } from './switchboard/learning-room/RoomPostFx';
 import { RoomPoster } from './room-poster';
 import { cn } from '@/lib/utils';
 
-for (const path of preloadModulePaths()) {
-  useGLTF.preload(path);
-}
 for (const path of preloadRoomModelPaths()) {
   preloadKeptGltf(path);
 }
@@ -111,6 +108,7 @@ function LearningCanvasScene({
     <>
       <CanvasPointerGate controlsEnabled={controlsEnabled} />
       <LearningScene controlsEnabled={controlsEnabled} onExit={onExit} onDprChange={onDprChange} />
+      <RoomPostFx />
     </>
   );
 }
@@ -151,8 +149,9 @@ export default function HeroSceneCanvas({
           onCreated={({ gl, camera }) => {
             gl.setClearColor(0xb8b8be, 1);
             gl.shadowMap.type = PCFShadowMap;
-            gl.toneMapping = ACESFilmicToneMapping;
-            gl.toneMappingExposure = 1.05;
+            // Tone mapping runs in RoomPostFx; this applies only if effects are unavailable.
+            gl.toneMapping = AgXToneMapping;
+            gl.toneMappingExposure = 1;
             gl.domElement.style.pointerEvents = 'none';
             gl.domElement.style.touchAction = 'pan-y';
             gl.domElement.style.display = 'block';

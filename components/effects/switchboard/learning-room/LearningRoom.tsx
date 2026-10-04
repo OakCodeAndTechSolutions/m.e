@@ -35,7 +35,7 @@ function GalleryFloor() {
  * downlights wash the room.
  */
 function ceilingBounce(lightLevel: number) {
-  return 0.2 + lightLevel * 0.1;
+  return 0.06 + lightLevel * 0.08;
 }
 
 /** Open timber teaching frames on all four walls. */
@@ -48,9 +48,11 @@ export function LearningRoom({ lightLevel = 0 }: { lightLevel?: number }) {
       <mesh
         position={[ROOM.width / 2, ROOM.height, ROOM.depth / 2]}
         rotation={[Math.PI / 2, 0, 0]}
+        castShadow
         receiveShadow
       >
-        <planeGeometry args={[ROOM.width + 4, ROOM.depth + 4]} />
+        {/* Room-sized: any overhang acts as an eave and shades the window. */}
+        <planeGeometry args={[ROOM.width + 0.2, ROOM.depth + 0.2]} />
         <meshStandardMaterial
           color="#f3efe6"
           emissive="#f6f1e7"

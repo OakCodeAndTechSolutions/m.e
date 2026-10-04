@@ -53,7 +53,6 @@ const MAT = {
   rocker: () => new MeshStandardMaterial({ color: '#ffffff', roughness: 0.62, metalness: 0.02, name: 'rocker' }),
   rockerRed: () => new MeshStandardMaterial({ color: '#9b1c1c', roughness: 0.46, metalness: 0.08, name: 'rocker' }),
   well: () => new MeshStandardMaterial({ color: '#1a1a1c', roughness: 0.5, metalness: 0.04, name: 'well' }),
-  shutter: () => new MeshStandardMaterial({ color: '#111113', roughness: 0.38, metalness: 0.06, name: 'shutter' }),
   screw: () => new MeshStandardMaterial({ color: '#c8ccd1', roughness: 0.26, metalness: 0.84, name: 'screw' }),
   pvc: () => new MeshStandardMaterial({ color: '#8b9096', roughness: 0.78, metalness: 0.04, name: 'box' }),
 };
@@ -160,23 +159,6 @@ function screwCap(root, x, y, z) {
   add(root, slot);
 }
 
-function auSocket(root, ox, oy, z0) {
-  add(root, roundMesh(MAT.well(), 0.034, 0.044, 0.006, 0.003, 5)).position.set(ox, oy, z0 + 0.003);
-  const earth = cylMesh(MAT.shutter(), 0.0035, 0.003, 16);
-  earth.rotation.x = Math.PI / 2;
-  earth.position.set(ox, oy - 0.012, z0 + 0.0062);
-  add(root, earth);
-  for (const [px, rot] of [
-    [-0.0074, 0.54],
-    [0.0074, -0.54],
-  ]) {
-    const slot = boxMesh(MAT.shutter(), 0.0122, 0.0024, 0.0026);
-    slot.position.set(ox + px, oy + 0.011, z0 + 0.0062);
-    slot.rotation.z = rot;
-    add(root, slot);
-  }
-}
-
 function buildRocker(mat, w, h, d) {
   const group = new Group();
   group.name = 'Rocker';
@@ -256,23 +238,6 @@ function buildDimmer() {
   return root;
 }
 
-function buildGpoSingle() {
-  const root = new Group();
-  root.name = 'gpo-single';
-  gangPlate(root, [
-    { w: 0.04, h: 0.05, r: 0.004, y: 0.016 },
-    { w: 0.02, h: 0.028, r: 0.0025, y: -0.036 },
-  ]);
-  auSocket(root, 0, 0.016, PLATE_D - 0.002);
-  const swGrid = roundMesh(MAT.well(), 0.016, 0.024, 0.003, 0.0018, 4);
-  swGrid.position.set(0, -0.036, PLATE_D / 2 + 0.001);
-  add(root, swGrid);
-  const sw = roundMesh(MAT.rocker(), 0.012, 0.02, 0.005, 0.002, 5);
-  sw.position.set(0, -0.036, PLATE_D + 0.002);
-  add(root, sw);
-  return root;
-}
-
 async function exportGlb(root, filename) {
   const scene = new Scene();
   scene.add(root);
@@ -283,7 +248,6 @@ async function exportGlb(root, filename) {
 }
 
 mkdirSync(OUT, { recursive: true });
-await exportGlb(buildGpoSingle(), 'gpo-single.glb');
 await exportGlb(buildSwitch(), 'switch.glb');
 await exportGlb(buildIsolator(), 'isolator.glb');
 await exportGlb(buildDimmer(), 'dimmer.glb');

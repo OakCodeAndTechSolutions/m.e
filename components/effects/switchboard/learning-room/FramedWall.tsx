@@ -158,7 +158,6 @@ export function FramedWalls() {
   const vMaps = useSizedPbr(POLYHAVEN.treatedPine, [0.09, 2.6], 1.2, 0, 0.05);
   const hMaps = useSizedPbr(POLYHAVEN.treatedPine, [2.6, 0.09], 1.2, Math.PI / 2, 0.05);
   const nMaps = useSizedPbr(POLYHAVEN.treatedPine, [2.6, 0.035], 1.2, Math.PI / 2, 0.05);
-  const plyMaps = useSizedPbr(POLYHAVEN.plywood, [0.55, 0.7], 0.55, 0);
   const boardZs = boardWallStudZs();
   const fridgeXs = fridgeWallStudXs();
   const s = ROOM.studSize;
@@ -168,9 +167,7 @@ export function FramedWalls() {
   const cx = HEIGHTS.cavityX;
   const cz = HEIGHTS.cavityZ;
   const openW = BOARD_OPENING.z1 - BOARD_OPENING.z0;
-  const openH = BOARD_OPENING.y1 - BOARD_OPENING.y0;
   const openZ = (BOARD_OPENING.z0 + BOARD_OPENING.z1) / 2;
-  const openY = (BOARD_OPENING.y0 + BOARD_OPENING.y1) / 2;
   const lintelT = s * 0.9;
   const sillY = BOARD_OPENING.y0;
   const headY = BOARD_OPENING.y1;
@@ -240,19 +237,7 @@ export function FramedWalls() {
         </group>
       ))}
 
-      <mesh position={[0.02, openY, openZ]} receiveShadow>
-        <boxGeometry args={[0.012, openH - 0.02, openW - 0.02]} />
-        <meshStandardMaterial
-          map={plyMaps.map}
-          normalMap={plyMaps.normalMap}
-          roughnessMap={plyMaps.roughnessMap}
-          color="#d7c49a"
-          roughness={1}
-          metalness={0.04}
-          envMapIntensity={0.55}
-          normalScale={[0.4, 0.4]}
-        />
-      </mesh>
+      {/* The flush enclosure sits between the trimmers; no backing board. */}
 
       <Timber maps={hMaps} position={[ROOM.width / 2, ROOM.plate / 2, cz]} args={[ROOM.width + s, ROOM.plate, s]} />
       <Timber

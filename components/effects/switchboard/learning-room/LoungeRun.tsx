@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { CanvasTexture, MeshStandardMaterial, SRGBColorSpace } from 'three';
 import { PathWire } from '../wiring/PathWire';
 import { DimmerSwitch } from './DimmerSwitch';
@@ -9,9 +9,9 @@ import { POLYHAVEN, ROOM_GLB } from './room-assets';
 import { FIXTURES, LOUNGE, ROOM } from './room-layout';
 import { RoomHit } from './RoomHit';
 import { SwitchedPowerPoint } from './SwitchedPowerPoint';
+import { WallLight } from './WallLight';
 import { useRepeatingPbr } from './room-textures';
-import { cloneGltfScene, setNamedEmissive } from './scene-graph';
-import { preloadKeptGltf, useKeptGltf } from './useKeptGltf';
+import { preloadKeptGltf } from './useKeptGltf';
 
 function TvScreen({ on, width, height }: { on: boolean; width: number; height: number }) {
   const map = useMemo(() => {
@@ -95,22 +95,22 @@ function LoungeTelevision({ on }: { on: boolean }) {
   );
 }
 
+/** Oatmeal wool rug: the knit's relief and roughness, in a light natural colour. */
 function Rug() {
-  const maps = useRepeatingPbr(POLYHAVEN.knittedFleece, [3.4, 2.6]);
+  const maps = useRepeatingPbr(POLYHAVEN.knittedFleece, [5, 4]);
   const { x, w, d, z } = LOUNGE.rug;
-  const h = 0.02;
+  const h = 0.012;
   return (
     <mesh position={[x + w / 2, h / 2, z + d / 2]} receiveShadow raycast={() => null}>
       <boxGeometry args={[w, h, d]} />
       <meshStandardMaterial
-        map={maps.map}
         normalMap={maps.normalMap}
         roughnessMap={maps.roughnessMap}
-        color="#9aa3ad"
-        roughness={0.94}
-        metalness={0.02}
-        envMapIntensity={0.28}
-        normalScale={[0.55, 0.55]}
+        color="#cfc4b0"
+        roughness={1}
+        metalness={0}
+        envMapIntensity={0.25}
+        normalScale={[0.8, 0.8]}
       />
     </mesh>
   );
@@ -162,35 +162,13 @@ function TvUnit() {
 }
 
 function LoungeSconces({ lightsOn, dimmer }: { lightsOn: boolean; dimmer: number }) {
-  const { scene } = useKeptGltf(ROOM_GLB.sconce);
-  const a = useMemo(() => cloneGltfScene(scene, { skipRaycast: true }), [scene]);
-  const b = useMemo(() => cloneGltfScene(scene, { skipRaycast: true }), [scene]);
-  const glow = lightsOn ? 0.7 + dimmer * 1.1 : 0;
-  useLayoutEffect(() => {
-    setNamedEmissive(a, 'Shade', lightsOn, { intensity: glow });
-    setNamedEmissive(b, 'Shade', lightsOn, { intensity: glow });
-  }, [a, b, lightsOn, glow]);
+  const level = lightsOn ? 0.25 + dimmer * 0.75 : 0;
   const s1 = FIXTURES.loungeSconce1;
   const s2 = FIXTURES.loungeSconce2;
-  const intensity = lightsOn ? 0.45 + dimmer * 1.15 : 0;
   return (
     <group>
-      <primitive object={a} position={[s1.x, s1.y, s1.z]} rotation={[0, Math.PI, 0]} scale={1.18} />
-      <primitive object={b} position={[s2.x, s2.y, s2.z]} rotation={[0, Math.PI, 0]} scale={1.18} />
-      <>
-        <pointLight
-          position={[s1.x, s1.y - 0.02, s1.z - 0.28]}
-          intensity={intensity}
-          distance={5.2}
-          color="#fff4d6"
-        />
-        <pointLight
-          position={[s2.x, s2.y - 0.02, s2.z - 0.28]}
-          intensity={intensity}
-          distance={5.2}
-          color="#fff4d6"
-        />
-      </>
+      <WallLight position={[s1.x, s1.y, ROOM.depth]} rotationY={Math.PI} level={level} />
+      <WallLight position={[s2.x, s2.y, ROOM.depth]} rotationY={Math.PI} level={level} />
     </group>
   );
 }
@@ -289,7 +267,6 @@ export function LoungeRun({
 }
 
 preloadKeptGltf(ROOM_GLB.gpoDouble);
-preloadKeptGltf(ROOM_GLB.sconce);
 preloadKeptGltf(ROOM_GLB.sofa);
 preloadKeptGltf(ROOM_GLB.coffeeTable);
 preloadKeptGltf(ROOM_GLB.television);

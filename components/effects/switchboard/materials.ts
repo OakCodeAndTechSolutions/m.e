@@ -12,6 +12,9 @@ export function useSwitchboardMaterials() {
     });
     const enclosureInner = new MeshStandardMaterial({
       color: '#d8d5cf',
+      // Stands in for light bounced inside the box; the downward-facing top was near black.
+      emissive: '#d8d5cf',
+      emissiveIntensity: 0.28,
       roughness: 0.68,
       metalness: 0.02,
     });
@@ -25,20 +28,21 @@ export function useSwitchboardMaterials() {
       roughness: 0.44,
       metalness: 0.1,
     });
-    const plasticRed = new MeshStandardMaterial({
-      color: '#9b1c1c',
-      roughness: 0.4,
-      metalness: 0.1,
-    });
-    const plasticBlue = new MeshStandardMaterial({
-      color: '#1e4a8c',
-      roughness: 0.48,
-      metalness: 0.08,
-    });
     const plasticYellow = new MeshStandardMaterial({
-      color: '#c4a018',
-      roughness: 0.52,
-      metalness: 0.05,
+      color: '#f0bf0c',
+      roughness: 0.48,
+      metalness: 0.04,
+    });
+    /** Pin busbar insulating cover, as on the reference boards. */
+    const busCover = new MeshStandardMaterial({
+      color: '#25863d',
+      roughness: 0.5,
+      metalness: 0.04,
+    });
+    const copper = new MeshStandardMaterial({
+      color: '#b8703f',
+      roughness: 0.3,
+      metalness: 0.92,
     });
     const dinRail = new MeshStandardMaterial({
       color: '#9a9aa4',
@@ -49,11 +53,6 @@ export function useSwitchboardMaterials() {
       color: '#a16207',
       roughness: 0.26,
       metalness: 0.95,
-    });
-    const combNeutralMetal = new MeshStandardMaterial({
-      color: '#5c6b7a',
-      roughness: 0.28,
-      metalness: 0.88,
     });
     const brassChannel = new MeshStandardMaterial({
       color: '#78350f',
@@ -113,12 +112,11 @@ export function useSwitchboardMaterials() {
       enclosureInner,
       plasticGrey,
       plasticDark,
-      plasticRed,
-      plasticBlue,
+      busCover,
+      copper,
       plasticYellow,
       dinRail,
       brass,
-      combNeutralMetal,
       brassChannel,
       sheathGrey,
       screw,

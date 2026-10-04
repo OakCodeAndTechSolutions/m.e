@@ -72,7 +72,7 @@ export function RoomWiring({ liveById, isolatorOn, kitchenLightsOn, loungeLevel 
     [0.38, y, cz],
   ];
 
-  /** Board → switch height → switch → up the bay → sconces over the papers. */
+  /** Board → switch height → switch → up the bay → wall lights over the prints. */
   const lightingSheath: Vec3[] = [
     lightingGland,
     [cx, lightingGland[1] - 0.006, lightingGland[2]],
