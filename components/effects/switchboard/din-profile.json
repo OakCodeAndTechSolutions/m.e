@@ -1,0 +1,19 @@
+{
+  "height": 93,
+  "width": 17.75,
+  "noseHeight": 45,
+  "shoulderDepth": 46,
+  "noseDepth": 66,
+  "shoulderChamfer": 3,
+  "screwY": 38.8,
+  "screwRadius": 3.12,
+  "clampBehindShoulder": 12,
+  "terminalOffset": 4.18,
+  "toggleY": -9.2,
+  "togglePivot": 3.4,
+  "toggleOpeningHeight": 17.8,
+  "toggleOpeningWidth": 12.8,
+  "testX": 5.1,
+  "testY": 8.3,
+  "testSize": 3.8
+}

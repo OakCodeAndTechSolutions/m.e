@@ -5,6 +5,7 @@ import { CanvasTexture, MeshStandardMaterial, SRGBColorSpace } from 'three';
 import { PathWire } from '../wiring/PathWire';
 import { DimmerSwitch } from './DimmerSwitch';
 import { FittedGltf } from './FittedGltf';
+import { HouseModel } from './HouseModel';
 import { POLYHAVEN, ROOM_GLB } from './room-assets';
 import { FIXTURES, LOUNGE, ROOM } from './room-layout';
 import { RoomHit } from './RoomHit';
@@ -116,48 +117,14 @@ function Rug() {
   );
 }
 
-function Couch() {
-  const { x, w, d, z } = LOUNGE.couch;
+function LoungeFurniture() {
+  const { couch, table, cab } = LOUNGE;
   return (
-    <FittedGltf
-      url={ROOM_GLB.sofa}
-      maxSize={[w, 0.88, d]}
-      position={[x + w / 2, 0, z + d / 2]}
-      rotation={[0, 0, 0]}
-      align="bottom"
-      pin="center"
-      fit="contain"
-    />
-  );
-}
-
-function CoffeeTable() {
-  const { x, w, d, h, z } = LOUNGE.table;
-  return (
-    <FittedGltf
-      url={ROOM_GLB.coffeeTable}
-      maxSize={[w, h + 0.02, d]}
-      position={[x + w / 2, 0, z + d / 2]}
-      rotation={[0, Math.PI / 2, 0]}
-      align="bottom"
-      pin="center"
-      fit="contain"
-    />
-  );
-}
-
-function TvUnit() {
-  const { x, w, h, depth } = LOUNGE.cab;
-  return (
-    <FittedGltf
-      url={ROOM_GLB.tvCabinet}
-      maxSize={[w, h + 0.02, depth]}
-      position={[x + w / 2, 0, ROOM.depth]}
-      rotation={[0, Math.PI, 0]}
-      align="bottom"
-      pin="front"
-      fit="contain"
-    />
+    <>
+      <HouseModel asset="sofa" at={[couch.x + couch.w / 2, 0, couch.z + couch.d / 2]} />
+      <HouseModel asset="coffee-table" at={[table.x + table.w / 2, 0, table.z + table.d / 2]} />
+      <HouseModel asset="media-console" at={[cab.x + cab.w / 2, 0, ROOM.depth - cab.depth / 2]} />
+    </>
   );
 }
 
@@ -212,9 +179,7 @@ export function LoungeRun({
   return (
     <group>
       <Rug />
-      <Couch />
-      <CoffeeTable />
-      <TvUnit />
+      <LoungeFurniture />
       <LoungeTelevision on={screenOn} />
 
       <group position={[gpo.x, gpo.y, gpo.z]} rotation={[0, Math.PI, 0]}>
@@ -267,7 +232,4 @@ export function LoungeRun({
 }
 
 preloadKeptGltf(ROOM_GLB.gpoDouble);
-preloadKeptGltf(ROOM_GLB.sofa);
-preloadKeptGltf(ROOM_GLB.coffeeTable);
 preloadKeptGltf(ROOM_GLB.television);
-preloadKeptGltf(ROOM_GLB.tvCabinet);

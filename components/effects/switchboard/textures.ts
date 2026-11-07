@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three';
+import { CanvasTexture, SRGBColorSpace } from 'three';
 
 function makeCanvas(width: number, height: number, draw: (ctx: CanvasRenderingContext2D) => void) {
   const canvas = document.createElement('canvas');
@@ -29,133 +29,83 @@ function paperGrain(ctx: CanvasRenderingContext2D, w: number, h: number, alpha =
   ctx.putImageData(img, 0, 0);
 }
 
-/** Device label canvas — aspect matches NOSE_LAYOUT.label (width × height on the nose). */
 const FACE_W = 384;
-const FACE_H = 432;
-
-/** Moulded white of the module bodies — labels use it so they read printed, not stuck on. */
-const MODULE_WHITE = '#f1f1ef';
-/** Residential device accent: green for protective devices, red for the main switch. */
-export const DEVICE_GREEN = '#2f9a4a';
-export const DEVICE_RED = '#c62828';
-
+const FACE_H = 496;
+const DEVICE_GREEN = '#287845';
+const DEVICE_RED = '#a82d28';
 const FONT = '"Segoe UI", system-ui, sans-serif';
 
-/**
- * Nose label, after the reference devices: accent header band with the device type,
- * then the markings AS/NZS 61009.1 / 60947.3 put on the front (rating, sensitivity,
- * type, breaking capacity, standard). RCBOs keep the right column clear for the T
- * button, which sits on top of this label. Deliberately unbranded.
- */
-function drawDeviceFace(
-  ctx: CanvasRenderingContext2D,
-  accent: string,
-  header: string,
-  rating: string,
-  lines: [string, string, string],
-  testColumn: boolean
-) {
-  ctx.fillStyle = MODULE_WHITE;
-  ctx.fillRect(0, 0, FACE_W, FACE_H);
+/** Screen-printed ink on the moulding. Blank areas show the actual plastic and test recess. */
+function drawDeviceFace(ctx: CanvasRenderingContext2D, rating: string, isolator: boolean) {
+  const left = 18;
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-
-  ctx.fillStyle = accent;
-  roundRect(ctx, 10, 10, FACE_W - 20, 78, 10);
-  ctx.fill();
+  ctx.fillStyle = isolator ? DEVICE_RED : DEVICE_GREEN;
+  ctx.fillRect(left, 12, FACE_W - left * 2, 55);
   ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.font = `800 50px ${FONT}`;
-  ctx.fillText(header, FACE_W / 2, 50);
+  ctx.font = `750 35px ${FONT}`;
+  ctx.fillText(isolator ? 'MAIN SWITCH' : 'RCBO  1P+N', left + 9, 40);
 
-  const left = testColumn ? 22 : FACE_W / 2;
-  ctx.textAlign = testColumn ? 'left' : 'center';
-  ctx.fillStyle = '#18181b';
-  ctx.font = `800 ${testColumn ? 112 : 124}px ${FONT}`;
-  ctx.fillText(rating, left, 168);
-  ctx.font = `800 60px ${FONT}`;
-  ctx.fillText(lines[0], left, 262);
-  ctx.fillStyle = '#3f3f46';
-  ctx.font = `700 34px ${FONT}`;
-  ctx.fillText(lines[1], left, 328);
+  ctx.fillStyle = '#25282b';
+  ctx.font = `750 91px ${FONT}`;
+  ctx.fillText(rating, left, 147);
+  ctx.font = `700 50px ${FONT}`;
+  ctx.fillText(isolator ? '240 V~' : '30 mA', left, 238);
+  ctx.font = `650 33px ${FONT}`;
+  ctx.fillText(isolator ? 'AC-22A   50 Hz' : '240 V~  50/60 Hz', left, 306);
 
-  if (testColumn) {
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#52525b';
-    ctx.font = `700 28px ${FONT}`;
-    ctx.fillText('TEST', 307, 214);
+  if (!isolator) {
+    ctx.strokeStyle = '#303438';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(left, 344, 101, 52);
+    ctx.strokeRect(146, 344, 84, 52);
+    ctx.font = `650 29px ${FONT}`;
+    ctx.fillText('6000', left + 9, 371);
+    ctx.fillText('A', 177, 371);
+    ctx.strokeRect(249, 344, 105, 52);
+    ctx.beginPath();
+    for (let i = 0; i <= 40; i++) {
+      const y = 361 - Math.sin((i * Math.PI) / 20) * 6;
+      if (i === 0) ctx.moveTo(260, y);
+      else ctx.lineTo(260 + i * 2, y);
+    }
+    ctx.moveTo(260, 386);
+    for (let i = 0; i <= 40; i++) {
+      ctx.lineTo(260 + i * 2, 386 - Math.max(0, Math.sin((i * Math.PI) / 10)) * 10);
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#34433b';
+    ctx.font = `700 25px ${FONT}`;
+    ctx.fillText('TEST', 265, 226);
   }
 
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#71717a';
-  ctx.font = `600 26px ${FONT}`;
-  ctx.fillText(lines[2], FACE_W / 2, 398);
-
-  paperGrain(ctx, FACE_W, FACE_H, 0.025);
-}
-
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
+  ctx.fillStyle = '#33373b';
+  ctx.font = `650 29px ${FONT}`;
+  ctx.fillText(isolator ? 'AS/NZS 60947.3' : 'AS/NZS 61009.1', left, 452);
 }
 
 export function useMainSwitchFaceTexture() {
-  return useMemo(
-    () =>
-      makeCanvas(FACE_W, FACE_H, (ctx) =>
-        drawDeviceFace(
-          ctx,
-          DEVICE_RED,
-          'ISOLATOR',
-          '63A',
-          ['AC-22A', '240V~ 50Hz', 'AS/NZS 60947.3'],
-          false
-        )
-      ),
-    []
-  );
+  return useMemo(() => makeCanvas(FACE_W, FACE_H, (ctx) => drawDeviceFace(ctx, '63A', true)), []);
 }
 
-/** Ratings repeat across the board, so each label is drawn once and shared. */
 const rcboFaces = new Map<string, CanvasTexture>();
 
 export function useRcboFaceTexture(rating: string) {
   return useMemo(() => {
     const cached = rcboFaces.get(rating);
     if (cached) return cached;
-    const texture = makeCanvas(FACE_W, FACE_H, (ctx) =>
-      drawDeviceFace(
-        ctx,
-        DEVICE_GREEN,
-        'RCBO',
-        rating,
-        ['30mA', 'Type A · 6kA', 'AS/NZS 61009.1  240V~'],
-        true
-      )
-    );
+    const texture = makeCanvas(FACE_W, FACE_H, (ctx) => drawDeviceFace(ctx, rating, false));
     rcboFaces.set(rating, texture);
     return texture;
   }, [rating]);
 }
 
-/** Printed "N" beside the neutral terminals. Transparent so it sits on the moulding. */
+/** Neutral markings sit next to the paired screw wells on the RCBO only. */
 export function useNeutralMarkTexture() {
   return useMemo(
     () =>
       makeCanvas(64, 64, (ctx) => {
-        ctx.clearRect(0, 0, 64, 64);
-        ctx.fillStyle = '#2a2a2e';
+        ctx.fillStyle = '#224963';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = `800 52px ${FONT}`;
@@ -165,90 +115,25 @@ export function useNeutralMarkTexture() {
   );
 }
 
-/** Toggle paddle: solid accent with the moulded ▲▼ grip pattern from the reference photos. */
-export function usePaddleTexture(accent: string) {
-  return useMemo(
-    () =>
-      makeCanvas(256, 112, (ctx) => {
-        ctx.fillStyle = accent;
-        ctx.fillRect(0, 0, 256, 112);
-        ctx.fillStyle = 'rgba(255,255,255,0.92)';
-        const cols = 7;
-        const step = 256 / (cols + 1);
-        for (let i = 1; i <= cols; i++) {
-          const x = i * step;
-          // Upper row points up, lower row points down.
-          ctx.beginPath();
-          ctx.moveTo(x, 22);
-          ctx.lineTo(x + 11, 44);
-          ctx.lineTo(x - 11, 44);
-          ctx.closePath();
-          ctx.fill();
-          ctx.beginPath();
-          ctx.moveTo(x, 90);
-          ctx.lineTo(x + 11, 68);
-          ctx.lineTo(x - 11, 68);
-          ctx.closePath();
-          ctx.fill();
-        }
-      }),
-    [accent]
-  );
-}
+const contactMarks = new Map<boolean, CanvasTexture>();
 
-/** Yellow "dangerous voltage" label below the toggle (AS 1319 lightning-flash symbol). */
-export function useVoltageWarningTexture() {
-  return useMemo(
-    () =>
-      makeCanvas(256, 192, (ctx) => {
-        ctx.fillStyle = '#f5c400';
-        ctx.fillRect(0, 0, 256, 192);
-        // Black-bordered triangle with the lightning flash.
-        ctx.fillStyle = '#18181b';
-        ctx.beginPath();
-        ctx.moveTo(128, 18);
-        ctx.lineTo(218, 172);
-        ctx.lineTo(38, 172);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillStyle = '#f5c400';
-        ctx.beginPath();
-        ctx.moveTo(128, 48);
-        ctx.lineTo(194, 160);
-        ctx.lineTo(62, 160);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillStyle = '#18181b';
-        ctx.beginPath();
-        ctx.moveTo(138, 70);
-        ctx.lineTo(108, 120);
-        ctx.lineTo(128, 120);
-        ctx.lineTo(116, 152);
-        ctx.lineTo(150, 104);
-        ctx.lineTo(130, 104);
-        ctx.lineTo(144, 70);
-        ctx.closePath();
-        ctx.fill();
-      }),
-    []
-  );
-}
-
-/** Push-button cap: a bold "T", the marking AS/NZS 61009.1 uses for the test device. */
-export function useTestButtonTexture() {
-  return useMemo(
-    () =>
-      makeCanvas(128, 128, (ctx) => {
-        ctx.fillStyle = '#e4e4e7';
-        ctx.fillRect(0, 0, 128, 128);
-        ctx.fillStyle = '#18181b';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = '800 96px "Segoe UI", system-ui, sans-serif';
-        ctx.fillText('T', 64, 70);
-      }),
-    []
-  );
+/** Printed mechanical contact flag. Its state follows the handle, including with the main off. */
+export function useToggleStateTexture(on: boolean) {
+  return useMemo(() => {
+    const existing = contactMarks.get(on);
+    if (existing) return existing;
+    const map = makeCanvas(256, 64, (ctx) => {
+      ctx.fillStyle = on ? DEVICE_RED : DEVICE_GREEN;
+      ctx.fillRect(0, 0, 256, 64);
+      ctx.fillStyle = '#f6f5ef';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `800 47px ${FONT}`;
+      ctx.fillText(on ? 'I · ON' : 'O · OFF', 128, 32);
+    });
+    contactMarks.set(on, map);
+    return map;
+  }, [on]);
 }
 
 export type LabelStripCell = {
@@ -355,24 +240,15 @@ export function useMainSwitchPlateTexture() {
 }
 
 export function useEarthStripeTexture() {
-  return useMemo(() => {
-    const texture = makeCanvas(64, 64, (ctx) => {
-      ctx.fillStyle = '#4d7c0f';
-      ctx.fillRect(0, 0, 64, 64);
-      ctx.fillStyle = '#ca8a04';
-      for (let i = -64; i < 128; i += 14) {
-        ctx.beginPath();
-        ctx.moveTo(i, 0);
-        ctx.lineTo(i + 28, 0);
-        ctx.lineTo(i + 14, 64);
-        ctx.lineTo(i - 14, 64);
-        ctx.closePath();
-        ctx.fill();
-      }
-    });
-    texture.wrapS = RepeatWrapping;
-    texture.wrapT = RepeatWrapping;
-    texture.repeat.set(6, 1);
-    return texture;
-  }, []);
+  return useMemo(
+    () =>
+      makeCanvas(16, 128, (ctx) => {
+        ctx.fillStyle = '#35763f';
+        ctx.fillRect(0, 0, 16, 128);
+        ctx.fillStyle = '#d7bf32';
+        ctx.fillRect(0, 16, 16, 30);
+        ctx.fillRect(0, 80, 16, 30);
+      }),
+    []
+  );
 }

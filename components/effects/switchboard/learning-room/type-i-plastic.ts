@@ -3,9 +3,9 @@
 import { useMemo } from 'react';
 import { Mesh, MeshStandardMaterial, Object3D } from 'three';
 import { ROOM_GLB } from './room-assets';
-import { useKeptGltf, loadKeptGltf } from './useKeptGltf';
+import { useKeptGltf, preloadKeptGltf } from './useKeptGltf';
 
-loadKeptGltf(ROOM_GLB.gpoDouble);
+preloadKeptGltf(ROOM_GLB.gpoDouble);
 
 /** Plate material from the Sketchfab Type I GPO — generated fittings copy this. */
 export function useTypeIPlateMaterial(): MeshStandardMaterial | null {

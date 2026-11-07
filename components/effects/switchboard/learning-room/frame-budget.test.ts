@@ -39,4 +39,8 @@ describe('frame budget', () => {
     const { changes } = run(20, 30, createFrameBudget(1));
     expect(changes).toEqual([0.85, 0.7]);
   });
+
+  it('adapts even when sustained rendering is slower than four frames per second', () => {
+    expect(run(20, 3, createFrameBudget(1)).changes).toEqual([0.85, 0.7]);
+  });
 });

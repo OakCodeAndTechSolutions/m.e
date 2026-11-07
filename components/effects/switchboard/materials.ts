@@ -59,11 +59,6 @@ export function useSwitchboardMaterials() {
       roughness: 0.26,
       metalness: 0.92,
     });
-    const sheathGrey = new MeshStandardMaterial({
-      color: '#8a847c',
-      roughness: 0.62,
-      metalness: 0.04,
-    });
     const screw = new MeshStandardMaterial({
       color: '#6b6b74',
       roughness: 0.26,
@@ -118,7 +113,6 @@ export function useSwitchboardMaterials() {
       dinRail,
       brass,
       brassChannel,
-      sheathGrey,
       screw,
       wireActive,
       wireNeutral,

@@ -1,22 +1,15 @@
 'use client';
 
-import { RoundedBox } from '@react-three/drei';
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CanvasTexture, MathUtils, SRGBColorSpace, type Group } from 'three';
 import { BOARD } from './circuit-data';
-import { MM } from './din';
-import {
-  INTERACTION_REACH,
-  onInteractiveClick,
-  onInteractiveEnter,
-  onInteractiveLeave,
-} from './interaction';
-import type { SwitchboardMaterials } from './materials';
-import { useGameInput } from './learning-room/GameInputContext';
+import { BOARD_METRES_PER_UNIT, MM } from './din';
+import { OPEN_SWITCHBOARD_PROMPT } from './interaction';
+import { HouseModel } from './learning-room/HouseModel';
+import { useRoomTarget } from './learning-room/use-room-target';
 
 type Props = {
-  materials: SwitchboardMaterials;
   open: boolean;
   onRequestOpen: () => void;
   onClose: () => void;
@@ -30,8 +23,7 @@ const DOOR_DEPTH = 6 * MM;
  * Outer access door, hinged on the left of the frame with a quarter-turn latch on the
  * right. The fixed escutcheon remains behind it.
  */
-export function EnclosureCover({ materials, open, onRequestOpen, onClose }: Props) {
-  const { setPointerHint } = useGameInput();
+export function EnclosureCover({ open, onRequestOpen, onClose }: Props) {
   const hingeRef = useRef<Group>(null);
   const angle = useRef(open ? OPEN_ANGLE : 0);
 
@@ -45,12 +37,10 @@ export function EnclosureCover({ materials, open, onRequestOpen, onClose }: Prop
     if (hingeRef.current) hingeRef.current.rotation.y = angle.current;
   });
 
-  const hint = (distance: number) =>
-    distance > INTERACTION_REACH
-      ? 'Walk closer to the switchboard'
-      : open
-        ? 'Close switchboard'
-        : 'Open switchboard';
+  const target = useRoomTarget({
+    activate: open ? onClose : onRequestOpen,
+    prompt: open ? 'Close switchboard' : OPEN_SWITCHBOARD_PROMPT,
+  });
 
   return (
     <group position={[-doorW / 2, 0, z]}>
@@ -63,78 +53,22 @@ export function EnclosureCover({ materials, open, onRequestOpen, onClose }: Prop
       ))}
 
       <group ref={hingeRef}>
-        <RoundedBox
+        <HouseModel
+          asset="board-door"
+          at={[doorW / 2, 0, DOOR_DEPTH / 2]}
+          scale={1 / BOARD_METRES_PER_UNIT}
+        />
+        <mesh
           name="interact:board-door"
-          args={[doorW, doorH, DOOR_DEPTH]}
-          radius={2.5 * MM}
-          smoothness={3}
           position={[doorW / 2, 0, DOOR_DEPTH / 2]}
-          castShadow
-          receiveShadow
-          onClick={(e) => onInteractiveClick(e, open ? onClose : onRequestOpen)}
-          onPointerOver={(e) => {
-            onInteractiveEnter(e);
-            setPointerHint(hint(e.distance));
-          }}
-          onPointerOut={() => {
-            onInteractiveLeave();
-            setPointerHint(null);
-          }}
+          visible={false}
+          {...target}
         >
-          <meshPhysicalMaterial
-            color="#f3f2ee"
-            roughness={0.42}
-            metalness={0.06}
-            clearcoat={0.25}
-            clearcoatRoughness={0.45}
-          />
-        </RoundedBox>
-
-        {/* Generous tap target for mobile while closed. */}
-        {!open && (
-          <mesh
-            visible={false}
-            position={[doorW / 2, 0, 0.06]}
-            name="interact:board-open"
-            onClick={(e) => {
-              onInteractiveClick(e, onRequestOpen);
-              setPointerHint(null);
-            }}
-            onPointerOver={(e) => {
-              onInteractiveEnter(e);
-              setPointerHint(hint(e.distance));
-            }}
-            onPointerOut={() => {
-              onInteractiveLeave();
-              setPointerHint(null);
-            }}
-          >
-            <boxGeometry args={[doorW + 0.08, doorH + 0.08, 0.12]} />
-          </mesh>
-        )}
+          <boxGeometry args={[doorW + 0.08, doorH + 0.08, DOOR_DEPTH + 0.04]} />
+        </mesh>
 
         <DoorLabel x={doorW / 2} y={doorH / 2 - 0.42} />
-        <QuarterTurnLatch x={doorW - 0.16} materials={materials} />
       </group>
-    </group>
-  );
-}
-
-/** Flush quarter-turn latch: chrome bezel with a screwdriver slot. */
-function QuarterTurnLatch({ x, materials }: { x: number; materials: SwitchboardMaterials }) {
-  return (
-    <group position={[x, 0, DOOR_DEPTH]}>
-      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.6 * MM]} raycast={() => null}>
-        <cylinderGeometry args={[7 * MM, 7.4 * MM, 1.2 * MM, 28]} />
-        <meshStandardMaterial color="#cfd1d4" roughness={0.25} metalness={0.9} />
-      </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 1.3 * MM]} raycast={() => null}>
-        <cylinderGeometry args={[4.6 * MM, 4.6 * MM, 0.6 * MM, 24]} />
-        <meshStandardMaterial color="#9ea2a7" roughness={0.3} metalness={0.9} />
-      </mesh>
-      <mesh position={[0, 0, 1.65 * MM]} material={materials.plasticDark} raycast={() => null}>
-        <boxGeometry args={[7 * MM, 1.1 * MM, 0.4 * MM]} />
-      </mesh>
     </group>
   );
 }

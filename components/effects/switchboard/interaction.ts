@@ -1,5 +1,7 @@
 import type { ThreeEvent } from '@react-three/fiber';
 
+export const OPEN_SWITCHBOARD_PROMPT = 'Open switchboard';
+
 /** Look-drag on mobile: ignore the click that fires when the finger lifts. */
 let lookDragActive = false;
 let lastInteractAt = -Infinity;

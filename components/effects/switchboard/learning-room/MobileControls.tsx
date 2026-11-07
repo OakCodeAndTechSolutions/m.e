@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import { useCoarsePointer } from '@/lib/hooks';
-import { useSwitchboard } from '../SwitchboardContext';
 import { analogFromDelta } from './player-motion';
 import { useGameInput } from './GameInputContext';
 
@@ -12,7 +11,6 @@ type Props = {
 
 export function MobileControls({ visible }: Props) {
   const { coarse } = useCoarsePointer();
-  const { coverOpen } = useSwitchboard();
   const { mobileKeys: mobileKeysRef } = useGameInput();
   const stickRef = useRef<HTMLDivElement>(null);
   const knobRef = useRef<HTMLDivElement>(null);
@@ -108,6 +106,7 @@ export function MobileControls({ visible }: Props) {
     <div className="pointer-events-none absolute inset-0 z-40">
       <div
         ref={stickRef}
+        data-room-stick
         className="pointer-events-auto absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] h-[5.5rem] w-[5.5rem] touch-none"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -115,18 +114,12 @@ export function MobileControls({ visible }: Props) {
         onPointerCancel={onPointerUp}
         onLostPointerCapture={onPointerUp}
       >
-        <div className="absolute inset-0 rounded-full border border-white/20 bg-black/35 backdrop-blur-sm" />
+        <div className="absolute inset-0 rounded-full border border-white/25 bg-black/45" />
         <div
           ref={knobRef}
           className="absolute left-1/2 top-1/2 h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/30 bg-white/25 shadow-md"
         />
-        <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-medium tracking-wider text-white/80">
-          Move
-        </span>
       </div>
-      <p className="pointer-events-none absolute bottom-[max(1.35rem,calc(env(safe-area-inset-bottom)+0.5rem))] right-[max(0.75rem,env(safe-area-inset-right))] max-w-[7.5rem] text-right text-[9px] font-medium leading-snug tracking-wider text-white/75">
-        {coverOpen ? 'Move to step back' : 'Drag to look'}
-      </p>
     </div>
   );
 }

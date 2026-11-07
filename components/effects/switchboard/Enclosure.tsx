@@ -1,11 +1,13 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ExtrudeGeometry, Path, Shape } from 'three';
-import { BOARD, CIRCUITS, ROOM_CIRCUIT_IDS, rcboX } from './circuit-data';
-import { MM } from './din';
+import { BOARD, CIRCUITS } from './circuit-data';
+import { BOARD_METRES_PER_UNIT, MM } from './din';
 import type { SwitchboardMaterials } from './materials';
-import { KnockoutRing } from './parts/KnockoutRing';
+import { BOARD_CABLE_ENTRIES, CABLE_SIZE } from './wiring/board-cables';
+import { tieBandGeometry } from './wiring/cable-geometry';
+import { ENCLOSURE_BOND } from './wiring/wire-paths';
 
 type Props = {
   materials: SwitchboardMaterials;
@@ -50,9 +52,39 @@ function useFrameGeometry() {
   }, []);
 }
 
+function useCableEntryPlate(depth: number, center: number) {
+  return useMemo(() => {
+    const plate = new Shape();
+    plate.moveTo(-BOARD.width / 2, -depth / 2);
+    plate.lineTo(BOARD.width / 2, -depth / 2);
+    plate.lineTo(BOARD.width / 2, depth / 2);
+    plate.lineTo(-BOARD.width / 2, depth / 2);
+    plate.closePath();
+    for (const {
+      point: [x, , z],
+      kind,
+    } of BOARD_CABLE_ENTRIES) {
+      const size = CABLE_SIZE[kind];
+      const hole = new Path();
+      hole.absellipse(
+        x,
+        center - z,
+        (size.w * 500 + 1.4) * MM,
+        (size.t * 500 + 1.4) * MM,
+        0,
+        Math.PI * 2,
+        true,
+        0
+      );
+      plate.holes.push(hole);
+    }
+    return new ExtrudeGeometry(plate, { depth: WALL, bevelEnabled: false, curveSegments: 12 });
+  }, [depth, center]);
+}
+
 /**
  * Flush-mount enclosure: a steel tub in the wall cavity, a galvanised chassis carrying
- * the DIN rail, cable entries top and bottom, and a powder-coated frame on the plaster.
+ * the DIN rail, protected cable entries, and a powder-coated frame.
  */
 export function Enclosure({ materials }: Props) {
   const { width: w, height: h, depth: d } = BOARD;
@@ -61,15 +93,28 @@ export function Enclosure({ materials }: Props) {
   const tubDepth = BOARD.frontZ - back;
   const tubZ = back + tubDepth / 2;
 
-  // Floor gland plate — one entry per circuit in a single aligned row.
-  const firstX = rcboX(0);
-  const lastX = rcboX(CIRCUITS.length - 1);
-  const plateY = -h / 2 + WALL + 0.02;
-  const plateW = lastX - firstX + 0.28;
-  const plateCx = (firstX + lastX) / 2;
+  const top = useCableEntryPlate(tubDepth, tubZ);
+  const sleeves = useMemo(
+    () =>
+      BOARD_CABLE_ENTRIES.map(({ circuitId, point, kind }) => {
+        const { w, t } = CABLE_SIZE[kind];
+        return {
+          circuitId,
+          point,
+          geometry: tieBandGeometry(w + 0.0009, t + 0.0009, 0.0032, 0.0021, false),
+        };
+      }),
+    []
+  );
+  useEffect(
+    () => () => {
+      top.dispose();
+      frame.dispose();
+      for (const sleeve of sleeves) sleeve.geometry.dispose();
+    },
+    [top, frame, sleeves]
+  );
 
-  const topY = h / 2 - WALL - 0.004;
-  const mains = BOARD.mainsKnockout;
   // Under the rail ends, clear of the tub walls.
   const bracketX = (CIRCUITS.length + 1) * BOARD.rcboWidth * 0.5 + 0.02;
 
@@ -79,15 +124,30 @@ export function Enclosure({ materials }: Props) {
       <mesh position={[0, 0, back + WALL / 2]} receiveShadow material={materials.enclosureInner}>
         <boxGeometry args={[w, h, WALL]} />
       </mesh>
-      {[-1, 1].map((side) => (
+      <mesh
+        position={[0, -h / 2 + WALL / 2, tubZ]}
+        receiveShadow
+        material={materials.enclosureInner}
+      >
+        <boxGeometry args={[w, WALL, tubDepth]} />
+      </mesh>
+      <mesh
+        geometry={top}
+        position={[0, h / 2 - WALL, tubZ]}
+        rotation-x={-Math.PI / 2}
+        receiveShadow
+        material={materials.enclosureInner}
+      />
+      {sleeves.map(({ circuitId, point: [x, y, z], geometry }) => (
         <mesh
-          key={`tb${side}`}
-          position={[0, side * (h / 2 - WALL / 2), tubZ]}
+          key={circuitId}
+          position={[x, y - WALL, z]}
+          rotation-x={-Math.PI / 2}
+          scale={1 / BOARD_METRES_PER_UNIT}
+          geometry={geometry}
+          material={materials.plasticDark}
           receiveShadow
-          material={materials.enclosureInner}
-        >
-          <boxGeometry args={[w, WALL, tubDepth]} />
-        </mesh>
+        />
       ))}
       {[-1, 1].map((side) => (
         <mesh
@@ -126,22 +186,18 @@ export function Enclosure({ materials }: Props) {
         );
       })}
 
-      {/* Top entries: the mains TPS gland and capped spares. */}
-      <KnockoutRing
-        materials={materials}
-        position={[mains[0], topY, mains[2]]}
-        radius={0.11}
-        tube={0.014}
-      />
-      {[0.32, 0.62, w - 0.6, w - 0.36].map((x, i) => (
-        <group key={`ko${i}`} position={[-w / 2 + x, topY, back + 0.15]}>
-          <KnockoutRing materials={materials} position={[0, 0, 0]} radius={0.07} tube={0.01} />
-          <mesh position={[0, 0.006, 0]}>
-            <cylinderGeometry args={[0.07, 0.07, 0.004, 20]} />
-            <meshStandardMaterial color="#dcdcd8" roughness={0.5} metalness={0.4} />
-          </mesh>
-        </group>
-      ))}
+      {/* Bonded steel tub: washer, ring lug and hex nut on the chassis stud. */}
+      <group position={ENCLOSURE_BOND} rotation-x={Math.PI / 2}>
+        <mesh position={[0, -0.026, 0]} material={materials.screw}>
+          <cylinderGeometry args={[3.5 * MM, 3.5 * MM, 1.3 * MM, 24]} />
+        </mesh>
+        <mesh position={[0, -0.014, 0]} material={materials.brass}>
+          <cylinderGeometry args={[2.85 * MM, 2.85 * MM, 0.85 * MM, 20]} />
+        </mesh>
+        <mesh position={[0, 0.001, 0]} material={materials.screw}>
+          <cylinderGeometry args={[2.25 * MM, 2.25 * MM, 1.8 * MM, 6]} />
+        </mesh>
+      </group>
 
       {/* Door catches on the latch side. */}
       {[0.9, -0.9].map((y) => (
@@ -153,34 +209,6 @@ export function Enclosure({ materials }: Props) {
           <boxGeometry args={[0.04, 0.12, 0.05]} />
         </mesh>
       ))}
-
-      <mesh position={[plateCx, plateY, BOARD.glandPlateZ]} material={materials.plasticGrey}>
-        <boxGeometry args={[plateW, 0.04, 0.3]} />
-      </mesh>
-      {CIRCUITS.map((c) => {
-        const used = ROOM_CIRCUIT_IDS.has(c.id);
-        return (
-          <group key={c.id} position={[rcboX(c.index), plateY + 0.02, BOARD.glandPlateZ]}>
-            {used ? (
-              <mesh position={[0, 0.002, 0]}>
-                <cylinderGeometry args={[0.046, 0.046, 0.044, 16]} />
-                <meshStandardMaterial color="#101012" roughness={0.92} metalness={0.04} />
-              </mesh>
-            ) : (
-              <mesh position={[0, 0.004, 0]}>
-                <cylinderGeometry args={[0.05, 0.05, 0.006, 16]} />
-                <meshStandardMaterial color="#c5c5c8" roughness={0.42} metalness={0.08} />
-              </mesh>
-            )}
-            <KnockoutRing
-              materials={materials}
-              position={[0, 0.01, 0]}
-              radius={0.056}
-              tube={0.01}
-            />
-          </group>
-        );
-      })}
     </group>
   );
 }

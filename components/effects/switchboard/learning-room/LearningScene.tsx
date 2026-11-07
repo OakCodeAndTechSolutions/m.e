@@ -1,9 +1,6 @@
 'use client';
 
-import { useFrame } from '@react-three/fiber';
-import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
-import type { MeshStandardMaterial } from 'three';
-import { useMediaQuery } from '@/lib/hooks';
+import { Suspense, useCallback, useEffect, useMemo } from 'react';
 import { Switchboard } from '../Switchboard';
 import { useSwitchboard } from '../SwitchboardContext';
 import { AboutPortraits } from './AboutPortraits';
@@ -12,13 +9,14 @@ import { KitchenRun } from './KitchenRun';
 import { LearningRoom } from './LearningRoom';
 import { LoungeRun } from './LoungeRun';
 import { Player } from './Player';
-import { RoomWiring } from './RoomWiring';
-import { BOARD_MOUNT, BOARD_OPENING, ROOM_LOADS, type RoomInteractId } from './room-layout';
+import { ExposedWallWiring } from './ExposedWallWiring';
+import { BOARD_MOUNT, ROOM_LOADS, type RoomInteractId } from './room-layout';
 import type { RoomLive } from './room-play';
 import { useGameInput } from './GameInputContext';
 import { CeilingLights } from './FinishedInterior';
 import { ScenePerformance } from './ScenePerformance';
 import { RoomLighting } from './RoomLighting';
+import { resolveRoomLighting } from './room-lighting';
 
 type Props = {
   controlsEnabled: boolean;
@@ -26,65 +24,9 @@ type Props = {
   onDprChange: (dpr: number) => void;
 };
 
-function LedBatten({ position, pulse }: { position: [number, number, number]; pulse: boolean }) {
-  const len = BOARD_OPENING.z1 - BOARD_OPENING.z0 - 0.1;
-  const matRef = useRef<MeshStandardMaterial>(null);
-  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
-
-  useFrame(({ clock }) => {
-    const mat = matRef.current;
-    if (!mat) return;
-    if (!pulse || reducedMotion) {
-      mat.emissiveIntensity = 1.15;
-      return;
-    }
-    mat.emissiveIntensity = 0.82 + (Math.sin(clock.elapsedTime * 2.35) * 0.5 + 0.5) * 0.7;
-  });
-
-  return (
-    <group position={position}>
-      <mesh castShadow>
-        <boxGeometry args={[0.042, 0.024, len]} />
-        <meshStandardMaterial color="#b8bcc2" metalness={0.72} roughness={0.28} />
-      </mesh>
-      <mesh position={[0.012, -0.004, 0]}>
-        <boxGeometry args={[0.02, 0.014, len - 0.03]} />
-        <meshStandardMaterial
-          ref={matRef}
-          color="#fff6e0"
-          emissive="#fff1c2"
-          emissiveIntensity={1.15}
-          roughness={0.32}
-          metalness={0.02}
-        />
-      </mesh>
-      {([-1, 1] as const).map((side) => (
-        <mesh key={side} position={[0, 0, side * (len / 2 - 0.008)]} castShadow>
-          <boxGeometry args={[0.044, 0.026, 0.016]} />
-          <meshStandardMaterial color="#9aa0a6" metalness={0.55} roughness={0.35} />
-        </mesh>
-      ))}
-      <pointLight
-        position={[0.22, -0.02, 0]}
-        intensity={1.25}
-        distance={2.6}
-        decay={2}
-        color="#fff1d4"
-      />
-      <pointLight
-        position={[0.08, -0.01, 0]}
-        intensity={0.4}
-        distance={1.2}
-        decay={2}
-        color="#f7f0e4"
-      />
-    </group>
-  );
-}
-
 function LearningSceneInner({ controlsEnabled, onExit, onDprChange }: Props) {
-  const { liveById, coverOpen } = useSwitchboard();
-  const { play, dispatchRoom: dispatch, wiringView } = useGameInput();
+  const { liveById, mainOn } = useSwitchboard();
+  const { play, dispatchRoom: dispatch } = useGameInput();
 
   const lightingLive = liveById[ROOM_LOADS.lighting] ?? false;
   const powerLive = liveById[ROOM_LOADS.power] ?? false;
@@ -94,7 +36,14 @@ function LearningSceneInner({ controlsEnabled, onExit, onDprChange }: Props) {
   const loungePowerLive = liveById[ROOM_LOADS.loungePower] ?? false;
   const loungeLightLive = liveById[ROOM_LOADS.loungeLight] ?? false;
   const hobLive = inductionLive && play.isolatorOn;
-  const lightsOn = lightingLive && play.lightSwitchOn;
+  const light = resolveRoomLighting({
+    exploring: controlsEnabled,
+    mainOn,
+    kitchenCircuit: lightingLive,
+    loungeCircuit: loungeLightLive,
+    kitchenSwitch: play.lightSwitchOn,
+    loungeDimmer: play.loungeDimmer,
+  });
   const live = useMemo<RoomLive>(
     () => ({ powerLive, hobLive, loungePowerLive }),
     [powerLive, hobLive, loungePowerLive]
@@ -124,9 +73,14 @@ function LearningSceneInner({ controlsEnabled, onExit, onDprChange }: Props) {
   return (
     <>
       <ScenePerformance onDprChange={onDprChange} />
-      <RoomLighting />
+      <RoomLighting
+        mode={light.mode}
+        guideKitchen={light.guideKitchen}
+        guideLounge={light.guideLounge}
+      />
       <LearningRoom
-        lightLevel={((lightsOn ? 1 : 0) + (loungeLightLive ? play.loungeDimmer : 0)) / 2}
+        daylight={light.mode === 'preview'}
+        lightLevel={((light.kitchenOn ? 1 : 0) + light.loungeLevel) / 2}
       />
       <group
         position={[BOARD_MOUNT.x, BOARD_MOUNT.y, BOARD_MOUNT.z]}
@@ -137,37 +91,17 @@ function LearningSceneInner({ controlsEnabled, onExit, onDprChange }: Props) {
           <Switchboard />
         </Suspense>
       </group>
-      {/* LED batten over the board — always-on so the enclosure stays readable. */}
-      {wiringView && (
-        <LedBatten
-          position={[BOARD_MOUNT.x + 0.06, BOARD_OPENING.y1 + 0.048, BOARD_MOUNT.z]}
-          pulse={controlsEnabled && !coverOpen}
-        />
-      )}
-      {wiringView && (
-        <group>
-          <RoomWiring
-            liveById={liveById}
-            isolatorOn={play.isolatorOn}
-            kitchenLightsOn={lightsOn}
-            loungeLevel={play.loungeDimmer}
-          />
-        </group>
-      )}
-      <CeilingLights kitchenOn={lightsOn} loungeLevel={loungeLightLive ? play.loungeDimmer : 0} />
+      <ExposedWallWiring />
+      <CeilingLights kitchenOn={light.kitchenOn} loungeLevel={light.loungeLevel} />
       <Suspense fallback={null}>
-        <Fixtures
-          lightsOn={lightsOn}
-          lightSwitchOn={play.lightSwitchOn}
-          onToggleSwitch={() => onInteract('switch')}
-        />
+        <Fixtures lightSwitchOn={play.lightSwitchOn} onToggleSwitch={() => onInteract('switch')} />
       </Suspense>
       <Suspense fallback={null}>
         <KitchenRun
           powerLive={powerLive}
           socketOn={play.kitchenSocketOn}
           onToggleSocket={() => onInteract('gpoDouble')}
-          lightsOn={lightsOn}
+          lightsOn={light.kitchenOn}
           fridgeLive={fridgeLive}
           ovenLive={ovenLive}
           hobLive={hobLive}
@@ -198,16 +132,7 @@ function LearningSceneInner({ controlsEnabled, onExit, onDprChange }: Props) {
         />
       </Suspense>
       <AboutPortraits />
-      <Player
-        enabled={controlsEnabled}
-        onExit={onExit}
-        onInteract={onInteract}
-        play={play}
-        powerLive={powerLive}
-        hobLive={hobLive}
-        loungePowerLive={loungePowerLive}
-        loungeLightLive={loungeLightLive}
-      />
+      <Player enabled={controlsEnabled} onExit={onExit} play={play} />
     </>
   );
 }

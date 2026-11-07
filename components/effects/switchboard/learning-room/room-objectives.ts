@@ -1,7 +1,7 @@
 import type { TripReason } from '../useSwitchboardState';
 import { INITIAL_ROOM_PLAY, type RoomPlayState } from './room-play';
 
-export type ObjectiveId = 'lights' | 'dimmer' | 'isolator' | 'board' | 'rcdTest' | 'wiring';
+export type ObjectiveId = 'lights' | 'dimmer' | 'isolator' | 'board' | 'rcdTest' | 'reset';
 
 export type RoomObjective = {
   id: ObjectiveId;
@@ -44,10 +44,10 @@ export const ROOM_OBJECTIVES: readonly RoomObjective[] = [
     fact: 'Test your safety switches every three months. Each one should trip straight away.',
   },
   {
-    id: 'wiring',
-    label: 'Look inside the walls',
-    where: 'Use the Show wiring button',
-    fact: 'TPS cable runs through the wall frame to every switch, light and power point.',
+    id: 'reset',
+    label: 'Reset the tripped circuit',
+    where: 'Flip the tripped RCBO back up',
+    fact: 'If it trips again straight away, something on that circuit is faulty. Leave it off and call an electrician.',
   },
 ];
 
@@ -55,7 +55,8 @@ export type ObjectiveSignals = {
   play: Pick<RoomPlayState, 'lightSwitchOn' | 'loungeDimmer' | 'isolatorOn'>;
   coverOpen: boolean;
   tripReason: TripReason;
-  wiringView: boolean;
+  /** A room circuit that was off has just been switched back on at the board. */
+  circuitRestored: boolean;
 };
 
 /** Objectives the current state demonstrates. Callers latch these; nothing un-completes. */
@@ -66,6 +67,6 @@ export function objectivesShown(signals: ObjectiveSignals): ObjectiveId[] {
   if (!signals.play.isolatorOn) shown.push('isolator');
   if (signals.coverOpen) shown.push('board');
   if (signals.tripReason === 'test') shown.push('rcdTest');
-  if (signals.wiringView) shown.push('wiring');
+  if (signals.circuitRestored) shown.push('reset');
   return shown;
 }

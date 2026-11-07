@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { ROOM_GLB, preloadRoomModelPaths } from './room-assets';
+import { HOUSE_GLB, ROOM_GLB, preloadRoomModelPaths } from './room-assets';
 
 describe('preloadRoomModelPaths', () => {
   it('preloads every registered model, since all of them are in the idle view', () => {
-    expect(new Set(preloadRoomModelPaths())).toEqual(new Set(Object.values(ROOM_GLB)));
+    expect(new Set(preloadRoomModelPaths())).toEqual(
+      new Set([...Object.values(ROOM_GLB), ...Object.values(HOUSE_GLB)])
+    );
   });
 });
 
@@ -26,7 +28,7 @@ function readGlb(filename: string) {
 }
 
 describe('optimized room models', () => {
-  for (const url of preloadRoomModelPaths().filter((url) => url.includes('/optimized/'))) {
+  for (const url of Object.values(ROOM_GLB)) {
     it(`preserves geometry and hinge nodes: ${path.basename(url)}`, () => {
       const filename = path.join(process.cwd(), 'public', url.split('?')[0]!);
       const original = readGlb(filename.replace(`${path.sep}optimized${path.sep}`, path.sep));

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowRight, CheckCircle2, ChevronDown, Circle } from 'lucide-react';
 import { useCoarsePointer } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
+import { CIRCUITS, ROOM_CIRCUIT_IDS } from '../circuit-data';
 import { useSwitchboard } from '../SwitchboardContext';
 import { useGameInput } from './GameInputContext';
 import { ROOM_OBJECTIVES, objectivesShown, type ObjectiveId } from './room-objectives';
@@ -13,16 +14,26 @@ const TOAST_MS = 4200;
 
 /** A short guided tour of the installation. Completing all of it offers a quote. */
 export function RoomObjectives({ visible }: { visible: boolean }) {
-  const { play, wiringView } = useGameInput();
-  const { coverOpen, tripReason } = useSwitchboard();
+  const { play } = useGameInput();
+  const { coverOpen, tripReason, rcboOn } = useSwitchboard();
   const { coarse } = useCoarsePointer();
   const [done, setDone] = useState<ReadonlySet<ObjectiveId>>(() => new Set());
   const [toast, setToast] = useState<ObjectiveId | null>(null);
   const [open, setOpen] = useState<boolean | null>(null);
   const doneRef = useRef(done);
+  const offBefore = useRef<ReadonlySet<string>>(new Set());
+  const [circuitRestored, setCircuitRestored] = useState(false);
 
   useEffect(() => {
-    const fresh = objectivesShown({ play, coverOpen, tripReason, wiringView }).filter(
+    const off = new Set(
+      CIRCUITS.filter((c) => ROOM_CIRCUIT_IDS.has(c.id) && !rcboOn[c.id]).map((c) => c.id)
+    );
+    if ([...offBefore.current].some((id) => !off.has(id))) setCircuitRestored(true);
+    offBefore.current = off;
+  }, [rcboOn]);
+
+  useEffect(() => {
+    const fresh = objectivesShown({ play, coverOpen, tripReason, circuitRestored }).filter(
       (id) => !doneRef.current.has(id)
     );
     if (fresh.length === 0) return;
@@ -30,7 +41,7 @@ export function RoomObjectives({ visible }: { visible: boolean }) {
     doneRef.current = next;
     setDone(next);
     setToast(fresh.at(-1) ?? null);
-  }, [play, coverOpen, tripReason, wiringView]);
+  }, [play, coverOpen, tripReason, circuitRestored]);
 
   useEffect(() => {
     if (!toast) return;

@@ -39,3 +39,4 @@ pnpm-lock.yaml
 .codex/
 .playwright-mcp/
 .claude/launch.json
+/.cache/learning-house/

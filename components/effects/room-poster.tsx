@@ -1,7 +1,6 @@
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-
-export const ROOM_POSTER = '/images/room-poster.jpg';
+import roomPoster from '@/public/images/room-poster.jpg';
 
 /** Still frame of the idle camera — stands in for the room until WebGL is requested and ready. */
 export function RoomPoster({
@@ -14,7 +13,7 @@ export function RoomPoster({
   return (
     <div className={cn('absolute inset-0 bg-[#c5c2bb]', className)} aria-hidden>
       <Image
-        src={ROOM_POSTER}
+        src={roomPoster}
         alt=""
         fill
         sizes="100vw"

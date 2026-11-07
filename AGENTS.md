@@ -16,11 +16,11 @@ There is exactly one service: the Next.js app.
 - Validation commands are `npm run lint`, `npm run type-check`, and `npm run test`. Keep all three passing before release.
 - All `process.env.NEXT_PUBLIC_*` variables (EmailJS, reCAPTCHA, PostHog, Google Analytics/GSC) are optional and only gate third-party integrations. The app builds and runs fully without them.
 - Because of the above, the multi-step contact form at `/contact` walks through its steps and client-side validation without any secrets, but the final submit intentionally fails with "reCAPTCHA site key is not configured." unless `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` and the `NEXT_PUBLIC_EMAILJS_*` vars are provided. This failure is expected in the cloud environment.
-- Switchboard devices (RCBOs, main switch, escutcheon) are procedural geometry in `components/effects/switchboard/devices/`, dimensioned in real millimetres via `din.ts`; there are no switchboard model files to regenerate.
+- The switchboard uses real millimetre dimensions from `components/effects/switchboard/din-profile.json`. The enclosure, escutcheon and wiring are procedural. To regenerate the Blender furniture, board door and breaker meshes, run `blender --background --python scripts/blender/build_learning_house.py`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 

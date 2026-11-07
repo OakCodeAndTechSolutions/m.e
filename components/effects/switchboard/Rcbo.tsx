@@ -3,12 +3,13 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { MathUtils, type Group } from 'three';
-import { BOARD, moduleBodyZ, rcboX, type CircuitPole } from './circuit-data';
-import { DIN, DIN_Z, MM, NOSE_LAYOUT } from './din';
+import { BOARD, circuitDisplayName, moduleBodyZ, rcboX, type CircuitPole } from './circuit-data';
+import { BOARD_METRES_PER_UNIT, DIN_Z, MM, NOSE_LAYOUT } from './din';
 import { TOGGLE_OFF, TOGGLE_ON, useDampRotation } from './hooks/useDampRotation';
-import { onInteractiveClick, onInteractiveEnter, onInteractiveLeave } from './interaction';
+import { useRoomTarget } from './learning-room/use-room-target';
+import { HouseModel } from './learning-room/HouseModel';
 import { ModuleToggle } from './parts/ModuleToggle';
-import { DEVICE_GREEN, useRcboFaceTexture, useTestButtonTexture } from './textures';
+import { useRcboFaceTexture } from './textures';
 
 type Props = {
   circuit: CircuitPole;
@@ -20,26 +21,21 @@ type Props = {
 };
 
 const TEST = NOSE_LAYOUT.test;
+const MODULE_SCALE = 1 / BOARD_METRES_PER_UNIT;
 
-/**
- * Interactive front of one RCBO: printed label, operating handle and T (test) button.
- * The moulded body, terminals and printed marks are drawn by DeviceRow.
- */
+/** The printed face and the two independent controls of a DIN-rail RCBO. */
 export function Rcbo({ circuit, on, onToggle, onTest, onHover, disabled = false }: Props) {
-  const x = rcboX(circuit.index);
   const face = useRcboFaceTexture(circuit.rating);
-  const testFace = useTestButtonTexture();
   const handleRef = useDampRotation(on ? TOGGLE_ON : TOGGLE_OFF);
   const testRef = useRef<Group>(null);
   const testPress = useRef(0);
 
   useFrame((_, delta) => {
     if (!testRef.current) return;
-    testPress.current = MathUtils.damp(testPress.current, 0, 10, delta);
-    testRef.current.position.z = -testPress.current * 0.8 * MM;
+    testPress.current = MathUtils.damp(testPress.current, 0, 12, delta);
+    testRef.current.position.z = -testPress.current * 1.05 * MM;
   });
 
-  const w = BOARD.rcboWidth;
   const nose = DIN_Z.nose;
   const hover = () => onHover(circuit.id);
   const unhover = () => onHover(null);
@@ -47,30 +43,32 @@ export function Rcbo({ circuit, on, onToggle, onTest, onHover, disabled = false 
     testPress.current = 1;
     onTest();
   };
+  const circuitLabel = circuitDisplayName(circuit.label).toLowerCase();
+  const testTarget = useRoomTarget({
+    activate: pressTest,
+    prompt: 'Test ' + circuitLabel,
+    device: { id: circuit.id, kind: 'test' },
+    enabled: !disabled,
+    onHover: hover,
+    onLeave: unhover,
+  });
 
   return (
-    <group name={`rcbo:${circuit.id}`} position={[x, BOARD.railY, moduleBodyZ()]}>
-      {/* The whole nose operates the handle, as a click on the device would. */}
-      <mesh
-        visible={false}
-        position={[0, 0, nose - 0.015]}
-        onClick={disabled ? undefined : (e) => onInteractiveClick(e, onToggle)}
-        onPointerOver={(e) => onInteractiveEnter(e, hover)}
-        onPointerOut={() => onInteractiveLeave(unhover)}
-      >
-        <boxGeometry args={[w * 0.96, DIN.noseHeight, 0.04]} />
+    <group
+      name={'rcbo:' + circuit.id}
+      position={[rcboX(circuit.index), BOARD.railY, moduleBodyZ()]}
+    >
+      <mesh position={[0, NOSE_LAYOUT.label.y, nose + 0.08 * MM]} raycast={() => null}>
+        <planeGeometry args={[BOARD.rcboWidth * 0.92, NOSE_LAYOUT.label.height]} />
+        <meshStandardMaterial map={face} transparent depthWrite={false} roughness={0.48} />
       </mesh>
 
-      <mesh position={[0, NOSE_LAYOUT.label.y, nose + 0.2 * MM]} raycast={() => null}>
-        <planeGeometry args={[w * 0.86, NOSE_LAYOUT.label.height]} />
-        <meshStandardMaterial map={face} roughness={0.6} />
-      </mesh>
-
-      <group name={`interact:${circuit.id}:toggle`} position={[0, NOSE_LAYOUT.toggle.y, nose]}>
+      <group name={'interact:' + circuit.id + ':toggle'} position={[0, NOSE_LAYOUT.toggle.y, nose]}>
         <ModuleToggle
           handleRef={handleRef}
           on={on}
-          accent={DEVICE_GREEN}
+          deviceId={circuit.id}
+          label={circuitLabel.charAt(0).toUpperCase() + circuitLabel.slice(1)}
           onToggle={onToggle}
           disabled={disabled}
           onHover={hover}
@@ -78,31 +76,17 @@ export function Rcbo({ circuit, on, onToggle, onTest, onHover, disabled = false 
         />
       </group>
 
-      {/* T: the integral test device. It only trips a closed, energised RCBO. */}
       <group position={[TEST.x, TEST.y, nose]}>
-        <mesh position={[0, 0, 0.3 * MM]} raycast={() => null}>
-          <boxGeometry args={[TEST.size + 1.2 * MM, TEST.size + 1.2 * MM, 0.5 * MM]} />
-          <meshStandardMaterial color={DEVICE_GREEN} roughness={0.5} />
-        </mesh>
         <group ref={testRef}>
-          <mesh position={[0, 0, 1.1 * MM]} raycast={() => null}>
-            <boxGeometry args={[TEST.size, TEST.size, 1.2 * MM]} />
-            <meshStandardMaterial color="#ececea" roughness={0.45} />
-          </mesh>
-          <mesh position={[0, 0, 1.75 * MM]} raycast={() => null}>
-            <planeGeometry args={[TEST.size * 0.86, TEST.size * 0.86]} />
-            <meshStandardMaterial map={testFace} roughness={0.45} />
-          </mesh>
+          <HouseModel asset="rcbo-test" at={[0, 0, -0.75 * MM]} scale={MODULE_SCALE} />
         </group>
         <mesh
           visible={false}
-          name={`interact:${circuit.id}:test`}
-          position={[0, 0, 0.03]}
-          onClick={disabled ? undefined : (e) => onInteractiveClick(e, pressTest)}
-          onPointerOver={(e) => onInteractiveEnter(e, hover)}
-          onPointerOut={() => onInteractiveLeave(unhover)}
+          name={'interact:' + circuit.id + ':test'}
+          position={[0, 0, 1.2 * MM]}
+          {...testTarget}
         >
-          <boxGeometry args={[TEST.size * 1.6, TEST.size * 1.6, 0.06]} />
+          <boxGeometry args={[TEST.size * 1.68, TEST.size * 1.68, 4.5 * MM]} />
         </mesh>
       </group>
     </group>

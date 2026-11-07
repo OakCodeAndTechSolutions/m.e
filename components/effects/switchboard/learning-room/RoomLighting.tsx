@@ -4,7 +4,9 @@ import { Environment, Lightformer } from '@react-three/drei';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { Object3D, type RectAreaLight } from 'three';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
-import { ROOM } from './room-layout';
+import { useSwitchboard } from '../SwitchboardContext';
+import { BOARD_MOUNT, FIXTURES, ROOM } from './room-layout';
+import type { RoomLightMode } from './room-lighting';
 
 RectAreaLightUniformsLib.init();
 
@@ -19,9 +21,9 @@ const SUN_DIRECTION = [0.78, 0.58, 0.16] as const;
  * side and a soft ceiling. It replaces an interior HDR whose coloured windows tinted
  * every glossy surface, and needs no download.
  */
-function RoomReflections() {
+function RoomReflections({ intensity }: { intensity: number }) {
   return (
-    <Environment resolution={128} environmentIntensity={0.55}>
+    <Environment resolution={128} environmentIntensity={intensity}>
       <color attach="background" args={['#d9d4cc']} />
       <Lightformer
         form="rect"
@@ -51,16 +53,87 @@ function RoomReflections() {
   );
 }
 
-/**
- * Daylight interior lighting. The room is lit the way a real one is: diffuse sky light
- * through the window (an area light filling the glazing), a soft-edged sun patch that
- * only enters through the glass (walls and ceiling cast), and warm bounce — a fill
- * from the timber floor plus light returned onto the window wall by the lit room.
- */
-export function RoomLighting() {
+type Point = [number, number, number];
+
+const BOARD_TARGET: Point = [0, BOARD_MOUNT.y, BOARD_MOUNT.z];
+const BOARD_GUIDE: Point = [1.14, 1.94, BOARD_MOUNT.z + 0.16];
+const KITCHEN_TARGET: Point = [
+  FIXTURES.lightSwitch.x,
+  FIXTURES.lightSwitch.y,
+  FIXTURES.lightSwitch.z,
+];
+const LOUNGE_TARGET: Point = [
+  FIXTURES.loungeDimmerA.x,
+  FIXTURES.loungeDimmerA.y,
+  FIXTURES.loungeDimmerA.z,
+];
+
+function LocatorLight({
+  from,
+  at,
+  intensity,
+  angle = 0.28,
+}: {
+  from: Point;
+  at: Point;
+  intensity: number;
+  angle?: number;
+}) {
+  const target = useMemo(() => new Object3D(), []);
+  return (
+    <>
+      <primitive object={target} position={at} />
+      <spotLight
+        position={from}
+        target={target}
+        angle={angle}
+        penumbra={0.98}
+        decay={2}
+        distance={2.5}
+        intensity={intensity}
+        color="#f6d7a6"
+      />
+    </>
+  );
+}
+
+/** The poster view uses daylight. The walkthrough uses dusk so switched light is visible. */
+export function RoomLighting({
+  mode,
+  guideKitchen,
+  guideLounge,
+}: {
+  mode: RoomLightMode;
+  guideKitchen: boolean;
+  guideLounge: boolean;
+}) {
   const sunTarget = useMemo(() => new Object3D(), []);
   const windowLight = useRef<RectAreaLight>(null);
   const roomBounce = useRef<RectAreaLight>(null);
+  const { coverOpen } = useSwitchboard();
+  const preview = mode === 'preview';
+  const lit = mode === 'lit';
+  const sky = preview ? '#cfd6da' : '#101c2b';
+  const switchTarget =
+    !coverOpen && mode === 'switches'
+      ? guideKitchen
+        ? KITCHEN_TARGET
+        : guideLounge
+          ? LOUNGE_TARGET
+          : null
+      : null;
+  const guideFrom: Point = switchTarget
+    ? [0.51, switchTarget[1] + 0.16, switchTarget[2]]
+    : BOARD_GUIDE;
+  const guideIntensity = preview
+    ? 0
+    : mode === 'board'
+      ? 8.2
+      : coverOpen
+        ? 6.5
+        : switchTarget
+          ? 0.92
+          : 1.15;
 
   useLayoutEffect(() => {
     windowLight.current?.lookAt(ROOM_CENTRE[0], WINDOW.y - 0.2, WINDOW.z);
@@ -78,19 +151,21 @@ export function RoomLighting() {
 
   return (
     <>
-      <color attach="background" args={['#cfd6da']} />
-      <fog attach="fog" args={['#cfd6da', 18, 42]} />
+      <color attach="background" args={[sky]} />
+      <fog attach="fog" args={[sky, 18, 42]} />
 
       {/* Bounce: neutral from above, warm from the timber floor. */}
-      <hemisphereLight args={['#f1e8dc', '#8c7258', 0.38]} />
+      <hemisphereLight
+        args={[preview ? '#f1e8dc' : '#b2c9ed', '#8c7258', preview ? 0.38 : lit ? 0.19 : 0.076]}
+      />
 
       <primitive object={sunTarget} position={ROOM_CENTRE} />
       <directionalLight
         position={sunPosition}
         target={sunTarget}
-        intensity={3.4}
+        intensity={preview ? 3.4 : 0}
         color="#fff0d8"
-        castShadow
+        castShadow={preview}
         shadow-mapSize={[2048, 2048]}
         shadow-radius={6}
         shadow-camera-near={2}
@@ -108,8 +183,8 @@ export function RoomLighting() {
         position={[ROOM.width - 0.04, WINDOW.y, WINDOW.z]}
         width={WINDOW.width}
         height={WINDOW.height}
-        intensity={6}
-        color="#fff5e8"
+        intensity={preview ? 6 : lit ? 0.54 : 0.135}
+        color={preview ? '#fff5e8' : '#9fbce9'}
       />
       {/* Light the sunlit room returns to the window wall, which faces away from the sky. */}
       <rectAreaLight
@@ -117,11 +192,17 @@ export function RoomLighting() {
         position={[ROOM.width - 3.2, 1.2, ROOM.depth / 2]}
         width={ROOM.depth - 0.4}
         height={2}
-        intensity={1.6}
+        intensity={preview ? 1.6 : lit ? 0.16 : 0}
         color="#f4e6d2"
       />
 
-      <RoomReflections />
+      <LocatorLight
+        from={guideFrom}
+        at={switchTarget ?? BOARD_TARGET}
+        intensity={guideIntensity}
+        angle={switchTarget ? 0.28 : 0.32}
+      />
+      <RoomReflections intensity={preview ? 0.55 : lit ? 0.18 : 0.048} />
     </>
   );
 }

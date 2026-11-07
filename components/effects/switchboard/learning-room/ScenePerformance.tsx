@@ -11,13 +11,13 @@ import { createFrameBudget, sampleFrameBudget } from './frame-budget';
 export function ScenePerformance({ onDprChange }: { onDprChange: (dpr: number) => void }) {
   const { gl, invalidate } = useThree();
   const renderer = useRef(gl);
-  const { play, wiringView } = useGameInput();
+  const { play, traceCircuit } = useGameInput();
   const { coverOpen } = useSwitchboard();
   // Poll the loader store from the frame loop. Subscribing here would synchronously
   // set React state when a newly revealed useTexture starts loading during render.
   const loaded = useRef(0);
   const refreshAt = useRef(0);
-  const sample = useRef(createFrameBudget(Math.min(window.devicePixelRatio, 1.25)));
+  const sample = useRef(createFrameBudget(gl.getPixelRatio()));
   const settleUntil = useRef(0);
   const statsAt = useRef(0);
 
@@ -45,7 +45,7 @@ export function ScenePerformance({ onDprChange }: { onDprChange: (dpr: number) =
       window.clearTimeout(refresh);
       window.clearTimeout(settled);
     };
-  }, [gl, invalidate, play, wiringView, coverOpen]);
+  }, [gl, invalidate, play.fridgeOpen, play.openById, coverOpen, traceCircuit]);
 
   useFrame((state, delta) => {
     const now = performance.now();

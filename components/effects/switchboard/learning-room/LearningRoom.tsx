@@ -1,32 +1,10 @@
 'use client';
 
 import { Suspense } from 'react';
-import { POLYHAVEN } from './room-assets';
 import { ROOM } from './room-layout';
-import { useRepeatingPbr } from './room-textures';
-import { FramedWalls } from './FramedWall';
+import { ExposedWall } from './ExposedWall';
 import { FinishedInterior } from './FinishedInterior';
-import { useGameInput } from './GameInputContext';
-
-function GalleryFloor() {
-  const maps = useRepeatingPbr(POLYHAVEN.laminate, [ROOM.width / 2.5, ROOM.depth / 2.5]);
-  return (
-    <mesh
-      rotation={[-Math.PI / 2, 0, 0]}
-      position={[ROOM.width / 2, 0, ROOM.depth / 2]}
-      receiveShadow
-    >
-      <planeGeometry args={[ROOM.width, ROOM.depth]} />
-      <meshStandardMaterial
-        map={maps.map}
-        normalMap={maps.normalMap}
-        roughnessMap={maps.roughnessMap}
-        roughness={1}
-        metalness={0.04}
-      />
-    </mesh>
-  );
-}
+import { HouseModel } from './HouseModel';
 
 /**
  * A painted ceiling is lit almost entirely by light bounced off the floor and walls,
@@ -34,16 +12,17 @@ function GalleryFloor() {
  * so the ceiling reads as white plaster rather than a grey lid, and it lifts when the
  * downlights wash the room.
  */
-function ceilingBounce(lightLevel: number) {
-  return 0.06 + lightLevel * 0.08;
+function ceilingBounce(daylight: boolean, lightLevel: number) {
+  return (daylight ? 0.06 : 0.003) + lightLevel * 0.08;
 }
 
-/** Open timber teaching frames on all four walls. */
-export function LearningRoom({ lightLevel = 0 }: { lightLevel?: number }) {
-  const { wiringView } = useGameInput();
+/** Floor, ceiling, the open board wall and the three finished walls. */
+export function LearningRoom({ daylight, lightLevel }: { daylight: boolean; lightLevel: number }) {
   return (
     <group>
-      <GalleryFloor />
+      <Suspense fallback={null}>
+        <HouseModel asset="hardwood-floor" at={[0, 0, 0]} castShadow={false} />
+      </Suspense>
 
       <mesh
         position={[ROOM.width / 2, ROOM.height, ROOM.depth / 2]}
@@ -56,19 +35,15 @@ export function LearningRoom({ lightLevel = 0 }: { lightLevel?: number }) {
         <meshStandardMaterial
           color="#f3efe6"
           emissive="#f6f1e7"
-          emissiveIntensity={ceilingBounce(lightLevel)}
+          emissiveIntensity={ceilingBounce(daylight, lightLevel)}
           roughness={0.95}
           metalness={0}
           envMapIntensity={0.3}
         />
       </mesh>
 
-      {wiringView && (
-        <Suspense fallback={null}>
-          <FramedWalls />
-        </Suspense>
-      )}
-      <FinishedInterior />
+      <ExposedWall />
+      <FinishedInterior daylight={daylight} />
     </group>
   );
 }

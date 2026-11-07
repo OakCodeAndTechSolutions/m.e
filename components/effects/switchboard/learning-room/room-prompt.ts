@@ -1,138 +1,95 @@
-import type { InteractSpot, RoomInteractId } from './room-layout';
+import type { RoomInteractId } from './room-layout';
 import type { RoomPlayState } from './room-play';
 
-export type PromptTone = 'default' | 'caution' | 'danger';
-
-export type RoomActionPrompt = {
-  text: string;
-  tone: PromptTone;
-};
-
-export type RoomPromptLive = {
+type RoomPromptLive = {
   powerLive: boolean;
   hobLive: boolean;
   loungePowerLive: boolean;
   loungeLightLive: boolean;
-  coverOpen: boolean;
-  coarse: boolean;
+  kitchenLightLive: boolean;
 };
 
-export function formatInteractVerb(prompt: string, coarse: boolean): string {
-  return coarse ? prompt.replaceAll('F · ', 'Tap · ') : prompt;
-}
+type FixturePrompt = {
+  text: string;
+  actionable: boolean;
+};
 
-function stripInteractVerb(prompt: string): string {
-  return prompt.replace(/^(?:F|Tap) · /, '');
-}
+const labels: Record<RoomInteractId, [string, string]> = {
+  switch: ['Lights on', 'Lights off'],
+  sink: ['Run the tap', 'Stop tap'],
+  gpoDouble: ['Plug / toast', 'Pop toaster'],
+  toaster: ['Toast', 'Pop toaster'],
+  cookIsolator: ['Cooktop isolator', 'Cooktop isolator'],
+  cooktop: ['Boil the pot', 'Take pot off'],
+  oven: ['Open oven', 'Close oven'],
+  dishwasher: ['Open dishwasher', 'Close dishwasher'],
+  fridge: ['Open fridge', 'Close fridge'],
+  'sink-base': ['Open cupboard', 'Close cupboard'],
+  'cabA-base': ['Open drawers', 'Close drawers'],
+  'cabL-base': ['Open cupboard', 'Close cupboard'],
+  'cabR-base': ['Open cupboard', 'Close cupboard'],
+  'sink-upper': ['Open overhead', 'Close overhead'],
+  'cabA-upper': ['Open overhead', 'Close overhead'],
+  'cabL-upper': ['Open overhead', 'Close overhead'],
+  'dw-upper': ['Open overhead', 'Close overhead'],
+  'cabR-upper': ['Open overhead', 'Close overhead'],
+  loungeDimmerA: ['Lounge lights', 'Lounge lights off'],
+  loungeDimmerB: ['Lounge lights', 'Lounge lights off'],
+  tv: ['TV on', 'TV off'],
+  tvGpo: ['TV on', 'TV off'],
+};
 
-export function loungeDimmerPrompt(live: boolean, dimmer: number): string {
-  if (!live) return 'Lounge lighting is off';
-  if (dimmer < 0.12) return 'F · Dim lounge lights';
-  if (dimmer < 0.52) return 'F · Dim 70%';
-  if (dimmer < 0.88) return 'F · Dim 100%';
-  return 'F · Lounge lights off';
-}
+const action = (text: string): FixturePrompt => ({ text, actionable: true });
+const unavailable = (text: string): FixturePrompt => ({ text, actionable: false });
 
-function promptForHit(
-  hit: InteractSpot<RoomInteractId>,
+export function roomActionPrompt(
+  id: RoomInteractId,
   play: RoomPlayState,
   live: RoomPromptLive
-): RoomActionPrompt {
-  switch (hit.id) {
+): FixturePrompt {
+  const [on, off] = labels[id];
+  switch (id) {
+    case 'switch':
+      return action((play.lightSwitchOn ? off : on) + (live.kitchenLightLive ? '' : ' · circuit off'));
     case 'toaster':
       return !play.kitchenSocketOn
-        ? { text: 'Switch the kitchen power point on', tone: 'caution' }
+        ? unavailable('Switch the kitchen power point on')
         : !live.powerLive
-          ? { text: 'Kitchen power is off', tone: 'caution' }
-          : { text: play.toasterPop ? hit.promptClose : hit.promptOpen, tone: 'default' };
+          ? unavailable('Kitchen power is off')
+          : action(play.toasterPop ? off : on);
     case 'gpoDouble':
-      return {
-        text: play.kitchenSocketOn ? 'F · Power point off' : 'F · Power point on',
-        tone: 'default',
-      };
+      return action(play.kitchenSocketOn ? 'Power point off' : 'Power point on');
     case 'cookIsolator':
-      return { text: play.isolatorOn ? 'F · Isolator off' : 'F · Isolator on', tone: 'caution' };
+      return action(play.isolatorOn ? 'Cooktop isolator off' : 'Cooktop isolator on');
     case 'cooktop':
       return !live.hobLive
-        ? {
-            text: play.isolatorOn ? 'Cooktop circuit is off at the board' : 'Turn the isolator on',
-            tone: 'caution',
-          }
-        : { text: play.boiling ? hit.promptClose : hit.promptOpen, tone: 'default' };
+        ? unavailable(play.isolatorOn ? 'Cooktop circuit is off' : 'Turn the cooktop isolator on')
+        : action(play.boiling ? off : on);
     case 'sink':
-      return { text: play.sinkOn ? hit.promptClose : hit.promptOpen, tone: 'default' };
+      return action(play.sinkOn ? off : on);
+    case 'fridge':
+      return action(play.fridgeOpen ? off : on);
     case 'loungeDimmerA':
     case 'loungeDimmerB': {
-      const text = loungeDimmerPrompt(live.loungeLightLive, play.loungeDimmer);
-      return { text, tone: live.loungeLightLive ? 'default' : 'caution' };
+      const level = play.loungeDimmer;
+      const label = level < 0.12
+        ? 'Lounge lights on'
+        : level < 0.52
+          ? 'Set lounge lights to 70%'
+          : level < 0.88
+            ? 'Set lounge lights to 100%'
+            : 'Lounge lights off';
+      return action(label + (live.loungeLightLive ? '' : ' · circuit off'));
     }
     case 'tv':
       return !play.loungeSocketOn
-        ? { text: 'Switch the lounge power point on', tone: 'caution' }
+        ? unavailable('Switch the lounge power point on')
         : !live.loungePowerLive
-          ? { text: 'Lounge power is off', tone: 'caution' }
-          : { text: play.tvOn ? hit.promptClose : hit.promptOpen, tone: 'default' };
+          ? unavailable('Lounge power is off')
+          : action(play.tvOn ? off : on);
     case 'tvGpo':
-      return {
-        text: play.loungeSocketOn ? 'F · Power point off' : 'F · Power point on',
-        tone: 'default',
-      };
-    default: {
-      const isOpen =
-        hit.id === 'fridge'
-          ? play.fridgeOpen
-          : hit.id === 'switch'
-            ? play.lightSwitchOn
-            : !!play.openById[hit.id];
-      return { text: isOpen ? hit.promptClose : hit.promptOpen, tone: 'default' };
-    }
+      return action(play.loungeSocketOn ? 'Power point off' : 'Power point on');
+    default:
+      return action(play.openById[id] ? off : on);
   }
-}
-
-function withVerb(prompt: RoomActionPrompt, coarse: boolean): RoomActionPrompt {
-  return { text: formatInteractVerb(prompt.text, coarse), tone: prompt.tone };
-}
-
-export function roomActionPrompt(
-  hit: InteractSpot<RoomInteractId> | null,
-  nearTheBoard: boolean,
-  play: RoomPlayState,
-  live: RoomPromptLive,
-  hint: InteractSpot<RoomInteractId> | null = null,
-  boardHint = false
-): RoomActionPrompt {
-  if (live.coverOpen) {
-    return {
-      text: live.coarse
-        ? 'Tap a breaker · move to step back'
-        : 'Tap a breaker · F / Esc closes cover',
-      tone: 'caution',
-    };
-  }
-
-  if (hit) return withVerb(promptForHit(hit, play, live), live.coarse);
-
-  if (nearTheBoard) {
-    return withVerb(
-      {
-        text: live.coarse ? 'Tap to open the switchboard' : 'F · Open switchboard',
-        tone: 'caution',
-      },
-      live.coarse
-    );
-  }
-
-  if (hint) {
-    const inner = promptForHit(hint, play, live);
-    return {
-      text: `Walk closer · ${stripInteractVerb(formatInteractVerb(inner.text, live.coarse))}`,
-      tone: inner.tone,
-    };
-  }
-
-  if (boardHint) {
-    return { text: 'Walk closer · Open cover', tone: 'caution' };
-  }
-
-  return { text: 'Walk to the board, kitchen, or lounge', tone: 'default' };
 }

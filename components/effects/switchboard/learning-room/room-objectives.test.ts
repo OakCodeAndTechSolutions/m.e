@@ -6,7 +6,7 @@ const idle: ObjectiveSignals = {
   play: INITIAL_ROOM_PLAY,
   coverOpen: false,
   tripReason: null,
-  wiringView: false,
+  circuitRestored: false,
 };
 
 describe('objectivesShown', () => {
@@ -29,7 +29,7 @@ describe('objectivesShown', () => {
       play: { ...INITIAL_ROOM_PLAY, lightSwitchOn: false, loungeDimmer: 0.35, isolatorOn: false },
       coverOpen: true,
       tripReason: 'test',
-      wiringView: true,
+      circuitRestored: true,
     });
     expect(new Set(all)).toEqual(new Set(ROOM_OBJECTIVES.map((o) => o.id)));
   });
