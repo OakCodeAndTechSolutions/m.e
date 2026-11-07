@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useProgress } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import { AgXToneMapping, PCFShadowMap } from 'three';
+import { NeutralToneMapping, PCFShadowMap } from 'three';
 import { SwitchboardProvider } from './switchboard/SwitchboardContext';
 import { CanvasPointerGate } from './switchboard/scene/CanvasPointerGate';
 import { CoverLicensePrompt } from './switchboard/learning-room/CoverLicensePrompt';
@@ -15,9 +15,9 @@ import { ShockOverlay } from './switchboard/learning-room/ShockOverlay';
 import { preloadRoomModelPaths } from './switchboard/learning-room/room-assets';
 import { preloadKeptGltf } from './switchboard/learning-room/useKeptGltf';
 import { IDLE_CAMERA } from './switchboard/learning-room/room-layout';
-import { RoomObjectives } from './switchboard/learning-room/RoomObjectives';
 import { RoomPostFx } from './switchboard/learning-room/RoomPostFx';
 import { RoomPoster } from './room-poster';
+import { COARSE_POINTER_QUERY } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
 
 for (const path of preloadRoomModelPaths()) {
@@ -71,21 +71,19 @@ function RoomLoadingOverlay({
       )}
     >
       <RoomPoster />
-      {showStatus && (
+      {showStatus && !revealed && (
         <div
           role="status"
           className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-3 rounded-full bg-black/70 px-4 py-2 text-xs font-medium text-white shadow-lg backdrop-blur-sm"
         >
-          <span>{revealed ? 'Room ready' : 'Wiring up the room…'}</span>
+          <span>Loading room…</span>
           <span className="relative h-1 w-20 overflow-hidden rounded-full bg-white/20" aria-hidden>
             <span
               className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-300"
-              style={{ width: `${revealed ? 100 : Math.max(percent, 6)}%` }}
+              style={{ width: `${Math.max(percent, 6)}%` }}
             />
           </span>
-          <span className="w-8 tabular-nums text-white/70">
-            {revealed ? '100%' : `${percent}%`}
-          </span>
+          <span className="w-8 tabular-nums text-white/70">{percent}%</span>
         </div>
       )}
     </div>
@@ -97,18 +95,20 @@ function LearningCanvasScene({
   onExit,
   onReady,
   onDprChange,
+  enhancedEffects,
 }: {
   controlsEnabled: boolean;
   onExit: () => void;
   onReady: () => void;
   onDprChange: (dpr: number) => void;
+  enhancedEffects: boolean;
 }) {
   useEffect(onReady, [onReady]);
   return (
     <>
       <CanvasPointerGate controlsEnabled={controlsEnabled} />
       <LearningScene controlsEnabled={controlsEnabled} onExit={onExit} onDprChange={onDprChange} />
-      <RoomPostFx />
+      {enhancedEffects && <RoomPostFx />}
     </>
   );
 }
@@ -119,7 +119,8 @@ export default function HeroSceneCanvas({
   onExit,
 }: HeroSceneCanvasProps) {
   const [ready, setReady] = useState(false);
-  const [dpr, setDpr] = useState(() => Math.min(window.devicePixelRatio, 1.25));
+  const [compact] = useState(() => window.matchMedia(COARSE_POINTER_QUERY).matches);
+  const [dpr, setDpr] = useState(() => Math.min(window.devicePixelRatio, compact ? 1 : 1.25));
   const onReady = useCallback(() => setReady(true), []);
   return (
     <SwitchboardProvider>
@@ -133,9 +134,7 @@ export default function HeroSceneCanvas({
           }}
           dpr={dpr}
           frameloop={!active ? 'never' : controlsEnabled ? 'always' : 'demand'}
-          className={`!absolute inset-0 !h-full !w-full !max-w-full ${
-            controlsEnabled ? 'cursor-pointer' : ''
-          }`}
+          className="!absolute inset-0 !h-full !w-full !max-w-full"
           style={{
             pointerEvents: controlsEnabled ? 'auto' : 'none',
             touchAction: controlsEnabled ? 'none' : 'pan-y',
@@ -145,12 +144,16 @@ export default function HeroSceneCanvas({
             display: 'block',
           }}
           shadows={{ type: PCFShadowMap }}
-          gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+          gl={{
+            antialias: !compact,
+            alpha: false,
+            powerPreference: compact ? 'default' : 'high-performance',
+          }}
           onCreated={({ gl, camera }) => {
             gl.setClearColor(0xb8b8be, 1);
             gl.shadowMap.type = PCFShadowMap;
-            // Tone mapping runs in RoomPostFx; this applies only if effects are unavailable.
-            gl.toneMapping = AgXToneMapping;
+            // The direct renderer uses the same tone-mapping family as the desktop effects.
+            gl.toneMapping = NeutralToneMapping;
             gl.toneMappingExposure = 1;
             gl.domElement.style.pointerEvents = 'none';
             gl.domElement.style.touchAction = 'pan-y';
@@ -166,12 +169,12 @@ export default function HeroSceneCanvas({
               onExit={onExit ?? (() => undefined)}
               onReady={onReady}
               onDprChange={setDpr}
+              enhancedEffects={!compact && dpr >= 1}
             />
           </Suspense>
         </Canvas>
         <RoomLoadingOverlay sceneReady={ready} showStatus={controlsEnabled} />
         <LearningHud visible={controlsEnabled} />
-        <RoomObjectives visible={controlsEnabled} />
         <MobileControls visible={controlsEnabled} />
         <CoverLicensePrompt />
         <ShockOverlay />

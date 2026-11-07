@@ -3,8 +3,9 @@
 import { Suspense, useMemo } from 'react';
 import { CanvasTexture, Object3D, SRGBColorSpace } from 'three';
 import { DiningSet } from './DiningSet';
-import { useGameInput } from './GameInputContext';
-import { BOARD_CUTOUT, ROOM } from './room-layout';
+import { FRAME } from './exposed-wall';
+import { HouseModel } from './HouseModel';
+import { DINING, GUM, ISLAND, ROOM } from './room-layout';
 
 type V3 = [number, number, number];
 
@@ -18,35 +19,20 @@ function Block({ at, size, color = '#e6e1d7' }: { at: V3; size: V3; color?: stri
 }
 
 /**
- * Plaster on the board wall, cut around the flush-mounted switchboard tub. The
- * enclosure frame overlaps the cut edge, as on a real flush installation.
+ * Lined walls. The kitchen and lounge linings run on into the corners behind the open
+ * board wall's end studs, as they would on site.
  */
-function BoardWallPlaster() {
-  const { depth: d, height: h } = ROOM;
-  const { z0, z1, y0, y1 } = BOARD_CUTOUT;
-  const x = -0.008;
-  const t = 0.012;
-  return (
-    <>
-      <Block at={[x, h / 2, z0 / 2]} size={[t, h, z0]} />
-      <Block at={[x, h / 2, (z1 + d) / 2]} size={[t, h, d - z1]} />
-      <Block at={[x, y0 / 2, (z0 + z1) / 2]} size={[t, y0, z1 - z0]} />
-      <Block at={[x, (y1 + h) / 2, (z0 + z1) / 2]} size={[t, h - y1, z1 - z0]} />
-    </>
-  );
-}
-
-/** Finished plaster is a separate layer; the inspection view reveals the cavity. */
-export function FinishedInterior() {
-  const { wiringView } = useGameInput();
+export function FinishedInterior({ daylight }: { daylight: boolean }) {
   const { width: w, depth: d, height: h } = ROOM;
+  const lined = w - FRAME.back;
   return (
     <group>
-      <group visible={!wiringView}>
-        <BoardWallPlaster />
-        <Block at={[w / 2, h / 2, -0.008]} size={[w, h, 0.012]} />
-        <Block at={[w / 2, h / 2, d + 0.008]} size={[w, h, 0.012]} color="#b2b5a4" />
-      </group>
+      <Block at={[(w + FRAME.back) / 2, h / 2, -0.008]} size={[lined, h, 0.012]} />
+      <Block
+        at={[(w + FRAME.back) / 2, h / 2, d + 0.008]}
+        size={[lined, h, 0.012]}
+        color="#b2b5a4"
+      />
 
       {/* A real opening: the right wall is built around the glazing. */}
       <Block at={[w + 0.025, h / 2, 0.66]} size={[0.08, h, 1.32]} />
@@ -55,7 +41,7 @@ export function FinishedInterior() {
       <Block at={[w + 0.025, 2.52, 3.4]} size={[0.08, 0.36, 4.16]} />
       <group position={[w - 0.015, 1.53, 3.4]} rotation={[0, -Math.PI / 2, 0]}>
         {/* Out-of-focus garden beyond the glass, far enough out to show parallax. */}
-        <GardenView />
+        <GardenView daylight={daylight} />
         <mesh position={[0, 0, 0.02]} raycast={() => null}>
           <planeGeometry args={[4.16, 1.7]} />
           <meshStandardMaterial
@@ -107,23 +93,14 @@ export function FinishedInterior() {
           />
         </group>
       ))}
-      {[0, w].map((x) => (
-        <group key={x}>
-          <Block
-            at={[x === 0 ? 0.008 : w - 0.008, 0.06, d / 2]}
-            size={[0.024, 0.12, d]}
-            color="#f0ece4"
-          />
-          <Block
-            at={[x === 0 ? 0.025 : w - 0.025, h - 0.035, d / 2]}
-            size={[0.055, 0.07, d]}
-            color="#f0ece4"
-          />
-        </group>
-      ))}
+      {/* The unlined board wall has no skirting or cornice yet. */}
+      <Block at={[w - 0.008, 0.06, d / 2]} size={[0.024, 0.12, d]} color="#f0ece4" />
+      <Block at={[w - 0.025, h - 0.035, d / 2]} size={[0.055, 0.07, d]} color="#f0ece4" />
 
       <Suspense fallback={null}>
         <DiningSet />
+        <HouseModel asset="kitchen-island" at={[ISLAND.x, 0, ISLAND.z]} />
+        <HouseModel asset="potted-gum" at={[GUM.x, 0, GUM.z]} />
       </Suspense>
     </group>
   );
@@ -195,12 +172,12 @@ function paintGarden(): CanvasTexture {
   return texture;
 }
 
-function GardenView() {
+function GardenView({ daylight }: { daylight: boolean }) {
   const map = useMemo(() => paintGarden(), []);
   return (
     <mesh position={[0, -0.35, -1.6]} raycast={() => null}>
       <planeGeometry args={[10, 5]} />
-      <meshBasicMaterial map={map} toneMapped={false} />
+      <meshBasicMaterial map={map} color={daylight ? '#ffffff' : '#37485f'} toneMapped={false} />
     </mesh>
   );
 }
@@ -225,6 +202,18 @@ function DownlightPool({ z, level }: { z: number; level: number }) {
   );
 }
 
+function Pendant({ x, z, on }: { x: number; z: number; on: boolean }) {
+  return (
+    <group position={[x, ROOM.height, z]}>
+      <HouseModel asset="pendant" at={[0, 0, 0]} />
+      <mesh position={[0, -0.568, 0]} raycast={() => null}>
+        <cylinderGeometry args={[0.204, 0.204, 0.005, 36]} />
+        <meshStandardMaterial color="#ece6d8" emissive="#ffdbab" emissiveIntensity={on ? 2 : 0} />
+      </mesh>
+    </group>
+  );
+}
+
 /** Recessed downlights share the same switched circuits as the wall fittings. */
 export function CeilingLights({
   kitchenOn,
@@ -235,6 +224,11 @@ export function CeilingLights({
 }) {
   return (
     <group>
+      <Suspense fallback={null}>
+        <Pendant x={ISLAND.x - 0.44} z={ISLAND.z} on={kitchenOn} />
+        <Pendant x={ISLAND.x + 0.44} z={ISLAND.z} on={kitchenOn} />
+        <Pendant x={DINING.x} z={DINING.z} on={kitchenOn} />
+      </Suspense>
       {[
         { x: 2, z: 1.5, level: kitchenOn ? 1 : 0 },
         { x: 4.4, z: 1.5, level: kitchenOn ? 1 : 0 },

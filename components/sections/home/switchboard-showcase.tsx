@@ -12,7 +12,7 @@ import { useCoarsePointer, useMediaQuery } from '@/lib/hooks';
 const HIGHLIGHTS = [
   { icon: Lightbulb, text: 'Flip switches and dimmers' },
   { icon: ShieldCheck, text: 'Open the board and test an RCD' },
-  { icon: Cable, text: 'Follow the cabling inside the walls' },
+  { icon: Cable, text: 'Trace circuits through the exposed stud wall' },
 ];
 
 /** Live preview only where it is cheap: a desktop pointer, a wide screen and no Save-Data. */
@@ -113,7 +113,7 @@ export default function SwitchboardShowcase() {
       if (e.key !== 'Tab') return;
       const targets = Array.from(
         roomRef.current?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), a[href], input:not([disabled]), [tabindex="0"]'
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [tabindex="0"]'
         ) ?? []
       ).filter(
         (element) => element.getClientRects().length > 0 && !element.closest('[aria-hidden="true"]')
@@ -164,7 +164,7 @@ export default function SwitchboardShowcase() {
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
           A kitchen and lounge built the way I’d wire yours. Use the fittings, open the switchboard
-          and see where every cable runs.
+          and follow the wiring through an exposed stud wall.
         </p>
         <ul className="mt-6 flex flex-col items-center justify-center gap-x-6 gap-y-2 text-sm text-foreground/85 sm:flex-row sm:flex-wrap">
           {HIGHLIGHTS.map(({ icon: Icon, text }) => (

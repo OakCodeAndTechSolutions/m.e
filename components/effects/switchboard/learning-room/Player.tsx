@@ -2,20 +2,12 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
-import { Group, MathUtils, PerspectiveCamera, Quaternion, Vector3 } from 'three';
+import { Group, MathUtils, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from 'three';
 import { useCoarsePointer, useMediaQuery } from '@/lib/hooks';
-import {
-  BOARD_INSPECT,
-  IDLE_CAMERA,
-  PLAYER_SPAWN,
-  boardLookHint,
-  nearBoard,
-  nearestRoomHint,
-  nearestRoomInteract,
-  type RoomInteractId,
-} from './room-layout';
+import { CIRCUITS } from '../circuit-data';
+import { BOARD_INSPECT, IDLE_CAMERA, PLAYER_SPAWN, nearBoard } from './room-layout';
 import { useGameInput } from './GameInputContext';
-import { isLookDragActive } from '../interaction';
+import { isLookDragActive, markInteract, wasRecentInteract } from '../interaction';
 import { useSwitchboard } from '../SwitchboardContext';
 import {
   boardInspectCameraAnchor,
@@ -26,47 +18,35 @@ import {
   stepPlayerPoseBudget,
   type PlayerPose,
 } from './player-motion';
-import { tryRoomInteract } from './room-interact';
-import { roomActionPrompt } from './room-prompt';
+import { boardControlTarget, roomTargetAtView } from './room-target';
 import type { RoomPlayState } from './room-play';
 import { emptyKeys, usePlayerInput, type Zoom } from './use-player-input';
 
 type Props = {
   enabled: boolean;
   onExit: () => void;
-  onInteract: (id: RoomInteractId) => void;
   play: RoomPlayState;
-  powerLive: boolean;
-  hobLive: boolean;
-  loungePowerLive: boolean;
-  loungeLightLive: boolean;
 };
 
 const FOV_DEFAULT = 64;
 const FOV_ZOOM = 28;
 const FOV_BOARD = BOARD_INSPECT.fov;
+const BOARD_DEVICES = ['main', ...CIRCUITS.map((circuit) => circuit.id)];
 
-export function Player({
-  enabled,
-  onExit,
-  onInteract,
-  play,
-  powerLive,
-  hobLive,
-  loungePowerLive,
-  loungeLightLive,
-}: Props) {
-  const { gl, events, invalidate } = useThree();
-  const { coverOpen, coverPromptOpen, requestCoverOpen, denyCoverOpen, closeCover } =
-    useSwitchboard();
+export function Player({ enabled, onExit, play }: Props) {
+  const { gl, events, invalidate, scene, camera } = useThree();
+  const { coverOpen, coverPromptOpen, denyCoverOpen, closeCover, setHovered } = useSwitchboard();
   const {
+    traceCircuit,
+    traceDetail,
+    setTraceDetail,
     mobileKeys,
-    consumeInteract,
     isStunned,
     setStunned,
     setActionPrompt,
-    setHighlightedId,
-    dismissEntryHint,
+    setPointerHintsEnabled,
+    setPointerHint,
+    setNearBoard,
   } = useGameInput();
   const { coarseRef } = useCoarsePointer();
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
@@ -86,27 +66,61 @@ export function Player({
     z: IDLE_CAMERA.target[2],
   });
   const promptRef = useRef<string | null>(null);
-  const highlightRef = useRef<RoomInteractId | null>(null);
+  const boardNearRef = useRef(false);
+  const aimRay = useRef(new Raycaster());
+  const keyboardDevice = useRef<string | null>(null);
   const shake = useRef(0);
   const hoverRefresh = useRef(0);
   const promptRefresh = useRef(0);
   const cameraTransition = useRef(0);
   const lastPickPosition = useRef(new Vector3(Infinity, Infinity, Infinity));
   const lastPickRotation = useRef(new Quaternion());
-  const hintDismissed = useRef(false);
+
+  // DEV-ONLY camera hook for design screenshots; remove before commit.
+  const devCam = useRef<{
+    p: [number, number, number];
+    t: [number, number, number];
+    fov: number;
+  } | null>(null);
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    const w = window as unknown as Record<string, unknown>;
+    w.__roomCam = (p: [number, number, number], t: [number, number, number], fov = 64) => {
+      devCam.current = { p, t, fov };
+      invalidate();
+    };
+    w.__roomCamClear = () => {
+      devCam.current = null;
+      invalidate();
+    };
+    w.__roomPose = (x: number, z: number, yaw: number, pitch = 0) => {
+      devCam.current = null;
+      pose.current = { ...pose.current, x, z, yaw, pitch };
+      cameraTransition.current = 0;
+    };
+  }, [invalidate]);
 
   useEffect(() => {
     cameraTransition.current = 0.8;
-  }, [enabled, coverOpen]);
+    if (!coverOpen) {
+      keyboardDevice.current = null;
+      setHovered(null);
+      setTraceDetail(false);
+    }
+  }, [enabled, coverOpen, setHovered, setTraceDetail]);
 
   useEffect(() => {
     if (!enabled) {
+      closeCover();
+      denyCoverOpen();
       setActionPrompt(null);
-      setHighlightedId(null);
+      setPointerHintsEnabled(true);
+      setPointerHint(null);
+      setNearBoard(false);
       promptRef.current = null;
-      highlightRef.current = null;
+      boardNearRef.current = false;
     }
-  }, [enabled, setActionPrompt, setHighlightedId]);
+  }, [enabled, closeCover, denyCoverOpen, setActionPrompt, setNearBoard, setPointerHintsEnabled, setPointerHint]);
 
   useEffect(() => {
     const onShock = () => setStunned(1800);
@@ -124,11 +138,56 @@ export function Player({
     coverOpen,
     coverPromptOpen,
     onExit,
-    onInteract,
-    requestCoverOpen,
+    onUse: () => {
+      if (isStunned() || wasRecentInteract()) return;
+      setPointerHintsEnabled(false);
+      camera.updateMatrixWorld();
+      const target =
+        coverOpen && keyboardDevice.current
+          ? boardControlTarget(scene, keyboardDevice.current, 'toggle')
+          : roomTargetAtView(scene, camera, aimRay.current);
+      if (!target) return;
+      markInteract();
+      target.activate();
+    },
+    onBoardKey: (code) => {
+      if (code === 'KeyT') {
+        setPointerHintsEnabled(false);
+        const id =
+          keyboardDevice.current ?? roomTargetAtView(scene, camera, aimRay.current)?.device?.id;
+        const test = id ? boardControlTarget(scene, id, 'test') : null;
+        if (test && !wasRecentInteract()) {
+          markInteract();
+          test.activate();
+        }
+        return true;
+      }
+      if (code !== 'ArrowLeft' && code !== 'ArrowRight') return false;
+      setPointerHintsEnabled(false);
+      const devices = BOARD_DEVICES.filter((id) => boardControlTarget(scene, id, 'toggle'));
+      if (!devices.length) return true;
+      const index = keyboardDevice.current ? devices.indexOf(keyboardDevice.current) : -1;
+      const offset = code === 'ArrowRight' ? 1 : -1;
+      const nextIndex =
+        index < 0
+          ? offset > 0
+            ? 0
+            : devices.length - 1
+          : (index + offset + devices.length) % devices.length;
+      const selected = devices[nextIndex]!;
+      keyboardDevice.current = selected;
+      setHovered(selected);
+      return true;
+    },
+    onPointerActivity: () => {
+      setPointerHintsEnabled(true);
+      if (keyboardDevice.current) {
+        keyboardDevice.current = null;
+        setHovered(null);
+      }
+    },
     denyCoverOpen,
     closeCover,
-    dismissEntryHint,
   });
 
   useFrame(({ camera, clock }, delta) => {
@@ -144,6 +203,17 @@ export function Player({
     const merged = mergeMoveKeys(keysRef.current, m);
     const aspect = persp.aspect > 0.2 ? persp.aspect : 16 / 9;
 
+    if (devCam.current) {
+      const d = devCam.current;
+      camera.position.set(...d.p);
+      camera.lookAt(...d.t);
+      if (persp.fov !== d.fov) {
+        persp.fov = d.fov;
+        persp.updateProjectionMatrix();
+      }
+      return;
+    }
+
     if (enabled) {
       if (coverOpen && !coverPromptOpen && moveIntent(merged)) closeCover();
       const boardLocked = coverOpen || coverPromptOpen;
@@ -156,56 +226,12 @@ export function Player({
         { dishwasher: !!play.openById.dishwasher, fridge: play.fridgeOpen }
       );
       pose.current = next;
-      if (!hintDismissed.current && (next.moving || isLookDragActive())) {
-        hintDismissed.current = true;
-        dismissEntryHint();
-      }
       if (stunned && !reducedMotion) shake.current = Math.max(shake.current, 0.35);
 
-      if (!coverPromptOpen && consumeInteract()) {
-        tryRoomInteract(
-          next.x,
-          next.z,
-          inspecting,
-          coverOpen,
-          onInteract,
-          requestCoverOpen,
-          next.yaw,
-          closeCover
-        );
-      }
-
-      promptRefresh.current += delta;
-      if (promptRefresh.current >= 0.1) {
-        promptRefresh.current = 0;
-        const hit = coverOpen
-          ? null
-          : nearestRoomInteract(next.x, next.z, [], inspecting, next.yaw);
-        const hint = hit || coverOpen ? null : nearestRoomHint(next.x, next.z, next.yaw);
-        const nextPrompt = roomActionPrompt(
-          hit,
-          nearBoard(next.x, next.z),
-          play,
-          {
-            powerLive,
-            hobLive,
-            loungePowerLive,
-            loungeLightLive,
-            coverOpen,
-            coarse: coarseRef.current,
-          },
-          hint,
-          boardLookHint(next.x, next.z, next.yaw)
-        );
-        if (nextPrompt.text !== promptRef.current) {
-          promptRef.current = nextPrompt.text;
-          setActionPrompt(nextPrompt);
-        }
-        const nextHighlight = hit?.id ?? null;
-        if (nextHighlight !== highlightRef.current) {
-          highlightRef.current = nextHighlight;
-          setHighlightedId(nextHighlight);
-        }
+      const boardNear = coverOpen || nearBoard(next.x, next.z);
+      if (boardNear !== boardNearRef.current) {
+        boardNearRef.current = boardNear;
+        setNearBoard(boardNear);
       }
     }
 
@@ -241,7 +267,7 @@ export function Player({
     }
 
     const anchor = coverOpen
-      ? boardInspectCameraAnchor(aspect)
+      ? boardInspectCameraAnchor(aspect, traceCircuit !== '', traceDetail ? traceCircuit : '')
       : playingCameraAnchor(pose.current, zoomT);
     dummy.position.set(anchor.posX, anchor.posY, anchor.posZ);
 
@@ -272,9 +298,32 @@ export function Player({
       look.current.z = MathUtils.damp(look.current.z, anchor.lookZ, lookLambda, delta);
     }
     camera.lookAt(look.current.x, look.current.y, look.current.z);
-    // Re-pick as the camera moves, even if the mouse stays still.
+    promptRefresh.current += delta;
+    if (promptRefresh.current > 0.12 && !isLookDragActive()) {
+      promptRefresh.current = 0;
+      camera.updateMatrixWorld();
+      const selected = coverOpen ? keyboardDevice.current : null;
+      const target = coverPromptOpen
+        ? null
+        : selected
+          ? boardControlTarget(scene, selected, 'toggle')
+          : roomTargetAtView(scene, camera, aimRay.current);
+      const canTest = selected && boardControlTarget(scene, selected, 'test');
+      const prompt = target
+        ? coarseRef.current || target.actionable === false
+          ? target.prompt
+          : 'F · ' + target.prompt + (canTest ? ' · T test' : '')
+        : coverOpen && !coverPromptOpen && !coarseRef.current
+          ? '← / → Select breaker'
+          : null;
+      if (prompt !== promptRef.current) {
+        promptRef.current = prompt;
+        setActionPrompt(prompt);
+      }
+    }
+    // Re-pick a stationary mouse as the camera moves. Touch picks on the tap itself.
     hoverRefresh.current += delta;
-    if (hoverRefresh.current > 0.1 && !isLookDragActive()) {
+    if (!coarseRef.current && hoverRefresh.current > 0.1 && !isLookDragActive()) {
       hoverRefresh.current = 0;
       if (
         camera.position.distanceToSquared(lastPickPosition.current) > 0.000001 ||

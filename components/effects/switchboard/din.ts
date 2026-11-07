@@ -1,3 +1,5 @@
+import profile from './din-profile.json';
+
 /**
  * Real DIN device proportions in board units.
  *
@@ -17,22 +19,18 @@ export const BOARD_METRES_PER_UNIT = 0.018 / 0.17;
  */
 export const DIN = {
   /** Overall body height (terminal shoulders), mm. */
-  height: 91 * MM,
+  height: profile.height * MM,
   /** Front nose height — the standard 45 mm escutcheon cut-out. */
-  noseHeight: 45 * MM,
+  noseHeight: profile.noseHeight * MM,
   /** Rail face to shoulder front, where the escutcheon sits. */
-  shoulderDepth: 46 * MM,
+  shoulderDepth: profile.shoulderDepth * MM,
   /** Rail face to nose front. */
-  noseDepth: 66 * MM,
-  /** Chamfer on the shoulder's top/bottom front edge. */
-  shoulderChamfer: 4 * MM,
+  noseDepth: profile.noseDepth * MM,
   /** Terminal screw centres above/below the device centre. */
-  screwY: 34 * MM,
-  screwRadius: 2.6 * MM,
+  screwY: profile.screwY * MM,
+  terminalOffset: profile.terminalOffset * MM,
   /** Cable entry depth behind the shoulder face (directly under the screw clamp). */
-  clampBehindShoulder: 12 * MM,
-  /** Small gap between adjacent modules so the joins read. */
-  gap: 0.25 * MM,
+  clampBehindShoulder: profile.clampBehindShoulder * MM,
 } as const;
 
 /**
@@ -53,12 +51,14 @@ export const DIN_Z = {
 } as const;
 
 /**
- * Layout on the 45 mm nose face, top to bottom, in module-local Y: printed rating label
- * (with the T test button at its right), toggle opening, dangerous-voltage label.
+ * Layout on the 45 mm nose. The solid Blender parts and hit targets share these dimensions.
  */
 export const NOSE_LAYOUT = {
-  label: { y: 0.128, height: 0.165 },
-  test: { x: 0.044, y: 0.098, size: 0.04 },
-  toggle: { y: -0.042, openingHeight: 0.13 },
-  warning: { y: -0.175, height: 0.05 },
+  label: { y: 10.7 * MM, height: 21.3 * MM },
+  test: { x: profile.testX * MM, y: profile.testY * MM, size: profile.testSize * MM },
+  toggle: {
+    y: profile.toggleY * MM,
+    pivot: profile.togglePivot * MM,
+    openingHeight: profile.toggleOpeningHeight * MM,
+  },
 } as const;

@@ -20,7 +20,7 @@ export function createFrameBudget(initialDpr: number = DPR_LEVELS[0]): FrameBudg
 
 /** Ignore suspension/loading gaps; require sustained missed 60Hz frames before reducing pixels. */
 export function sampleFrameBudget(sample: FrameBudget, delta: number): number | null {
-  if (!Number.isFinite(delta) || delta <= 0 || delta > 0.25) {
+  if (!Number.isFinite(delta) || delta <= 0 || delta > 0.65) {
     sample.elapsed = 0;
     sample.frames = 0;
     sample.slowWindows = 0;

@@ -1,91 +1,67 @@
 'use client';
 
-import { RoundedBox } from '@react-three/drei';
 import type { RefObject } from 'react';
 import type { Group } from 'three';
 import { BOARD } from '../circuit-data';
-import { MM, NOSE_LAYOUT } from '../din';
-import { onInteractiveClick, onInteractiveEnter, onInteractiveLeave } from '../interaction';
-import { DEVICE_GREEN, DEVICE_RED, usePaddleTexture } from '../textures';
+import { BOARD_METRES_PER_UNIT, MM, NOSE_LAYOUT } from '../din';
+import { useRoomTarget } from '../learning-room/use-room-target';
+import { HouseModel } from '../learning-room/HouseModel';
+import { useToggleStateTexture } from '../textures';
 
 type Props = {
   handleRef: RefObject<Group | null>;
-  /** Contact position — drives the indicator window, independent of supply. */
+  /** Physical contact position, independent of upstream supply. */
   on: boolean;
-  accent: string;
+  isolator?: boolean;
+  label?: string;
+  deviceId: string;
   onToggle: () => void;
   disabled?: boolean;
   onHover?: () => void;
   onHoverEnd?: () => void;
 };
 
+const MODULE_SCALE = 1 / BOARD_METRES_PER_UNIT;
 const OPENING_H = NOSE_LAYOUT.toggle.openingHeight;
-const HANDLE_REACH = 9 * MM;
 
-/**
- * Operating handle in the nose opening (the opening itself is part of DeviceRow):
- * a white handle that flips up for ON (I) and down for OFF (O) with a coloured ▲▼
- * paddle, and a contact-position window above it (red = closed, green = open). The
- * hit box is fixed so the target does not move with the handle.
- */
 export function ModuleToggle({
   handleRef,
   on,
-  accent,
+  isolator = false,
+  label = 'breaker',
+  deviceId,
   onToggle,
   disabled = false,
   onHover,
   onHoverEnd,
 }: Props) {
-  const paddle = usePaddleTexture(accent);
-  const w = BOARD.rcboWidth;
+  const indication = useToggleStateTexture(on);
+  const target = useRoomTarget({
+    activate: onToggle,
+    prompt: label + (on ? ' off' : ' on'),
+    device: { id: deviceId, kind: 'toggle' },
+    enabled: !disabled,
+    onHover,
+    onLeave: onHoverEnd,
+  });
 
   return (
     <group>
-      <mesh position={[0, OPENING_H / 2 + 1.3 * MM, 0.2 * MM]} raycast={() => null}>
-        <boxGeometry args={[w * 0.46, 1.5 * MM, 0.3 * MM]} />
-        <meshStandardMaterial
-          color={on ? DEVICE_RED : DEVICE_GREEN}
-          emissive={on ? DEVICE_RED : DEVICE_GREEN}
-          emissiveIntensity={0.2}
-          roughness={0.35}
-        />
+      <mesh position={[0, 6.6 * MM, -0.25 * MM]} raycast={() => null}>
+        <planeGeometry args={[8.8 * MM, 2.35 * MM]} />
+        <meshStandardMaterial map={indication} roughness={0.56} />
       </mesh>
 
-      <group ref={handleRef}>
-        <RoundedBox
-          args={[w * 0.42, 4.6 * MM, HANDLE_REACH]}
-          radius={0.9 * MM}
-          smoothness={3}
-          position={[0, 0, HANDLE_REACH / 2]}
-          raycast={() => null}
-        >
-          <meshPhysicalMaterial
-            color="#f7f7f5"
-            roughness={0.4}
-            clearcoat={0.3}
-            clearcoatRoughness={0.4}
-          />
-        </RoundedBox>
-        <RoundedBox
-          args={[w * 0.6, 3 * MM, 1.6 * MM]}
-          radius={0.5 * MM}
-          smoothness={3}
-          position={[0, 0, HANDLE_REACH + 0.3 * MM]}
-          raycast={() => null}
-        >
-          <meshStandardMaterial map={paddle} roughness={0.42} />
-        </RoundedBox>
+      <group ref={handleRef} position={[0, 0, -NOSE_LAYOUT.toggle.pivot]}>
+        <HouseModel
+          asset={isolator ? 'isolator-toggle' : 'rcbo-toggle'}
+          at={[0, 0, 0]}
+          scale={MODULE_SCALE}
+        />
       </group>
 
-      <mesh
-        visible={false}
-        position={[0, 0, 0.05]}
-        onClick={disabled ? undefined : (e) => onInteractiveClick(e, onToggle)}
-        onPointerOver={(e) => onInteractiveEnter(e, onHover)}
-        onPointerOut={() => onInteractiveLeave(onHoverEnd)}
-      >
-        <boxGeometry args={[w * 0.9, OPENING_H + 0.012, 0.11]} />
+      <mesh visible={false} position={[0, 0, 3.2 * MM]} {...target}>
+        <boxGeometry args={[BOARD.rcboWidth * 0.92, OPENING_H + 2 * MM, 12 * MM]} />
       </mesh>
     </group>
   );

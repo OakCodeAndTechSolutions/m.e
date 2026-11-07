@@ -1,63 +1,31 @@
 'use client';
 
 import { useFrame } from '@react-three/fiber';
-import { useRef, type ReactNode } from 'react';
+import { RoundedBox } from '@react-three/drei';
+import { createContext, useContext, useRef, type ReactNode } from 'react';
 import { Group, MathUtils } from 'three';
-import { POLYHAVEN } from './room-assets';
-import { KITCHEN } from './room-layout';
-import { useSizedPbr } from './room-textures';
+import { KITCHEN, type RoomInteractId } from './room-layout';
+import { RoomHit } from './RoomHit';
 
-/** Textured 2-pack white — not furniture oak. */
-export const JOINERY = '#f4f2ed';
+/** Paperbark and muted olive laminate, with matching edge banding. */
+export const JOINERY = '#e5e0d4';
+const JoineryFinish = createContext(JOINERY);
 const JOINERY_IN = '#e2ddd4';
 const KICK = '#3a3d42';
-const HANDLE = '#2a2c30';
+const HANDLE = '#a68453';
 
 const PANEL = 0.018;
 const REVEAL = 0.002;
-const STILE = 0.062;
 const DOOR_T = 0.018;
 const KICK_RECESS = 0.036;
 const HANDLE_LEN = 0.152;
 const HANDLE_R = 0.006;
 const HANDLE_PROJ = 0.03;
-const WOOD_TILE = 0.48;
-
-function WoodMat({
-  w,
-  h,
-  grain,
-  interior = false,
-  panel = false,
-}: {
-  w: number;
-  h: number;
-  grain: 'v' | 'h';
-  interior?: boolean;
-  panel?: boolean;
-}) {
-  const maps = useSizedPbr(
-    POLYHAVEN.oakVeneer,
-    [Math.max(0.04, w), Math.max(0.04, h)],
-    WOOD_TILE,
-    grain === 'h' ? Math.PI / 2 : 0,
-  );
-  const tint = interior ? JOINERY_IN : panel ? '#f7f5f0' : JOINERY;
-  return (
-    <meshStandardMaterial
-      normalMap={maps.normalMap}
-      roughnessMap={maps.roughnessMap}
-      color={tint}
-      roughness={interior ? 0.72 : 0.48}
-      metalness={0.06}
-      envMapIntensity={interior ? 0.5 : panel ? 0.78 : 0.9}
-      normalScale={[0.08, 0.08]}
-    />
-  );
-}
 
 function HandleMat() {
-  return <meshStandardMaterial color={HANDLE} roughness={0.38} metalness={0.72} envMapIntensity={1.15} />;
+  return (
+    <meshStandardMaterial color={HANDLE} roughness={0.38} metalness={0.72} envMapIntensity={1.15} />
+  );
 }
 
 function Box({
@@ -66,28 +34,39 @@ function Box({
   d,
   position,
   interior,
-  panel,
-  grain = 'v',
-  uvW,
-  uvH,
+  edgeBand = false,
 }: {
   w: number;
   h: number;
   d: number;
   position: [number, number, number];
   interior?: boolean;
-  panel?: boolean;
-  grain?: 'v' | 'h';
-  uvW?: number;
-  uvH?: number;
+  edgeBand?: boolean;
 }) {
-  const u = uvW ?? w;
-  const v = uvH ?? h;
+  const finish = useContext(JoineryFinish);
   if (w < 0.004 || h < 0.004 || d < 0.004) return null;
+  const material = (
+    <meshStandardMaterial color={interior ? JOINERY_IN : finish} roughness={0.72} />
+  );
+  if (edgeBand) {
+    return (
+      <RoundedBox
+        args={[w, h, d]}
+        radius={0.0015}
+        smoothness={1}
+        position={position}
+        castShadow
+        receiveShadow
+        raycast={() => null}
+      >
+        {material}
+      </RoundedBox>
+    );
+  }
   return (
     <mesh position={position} castShadow receiveShadow raycast={() => null}>
       <boxGeometry args={[w, h, d]} />
-      <WoodMat w={u} h={v} grain={grain} interior={interior} panel={panel} />
+      {material}
     </mesh>
   );
 }
@@ -125,29 +104,6 @@ function BarHandle({
   );
 }
 
-function ShakerLeaf({ w, h }: { w: number; h: number }) {
-  const f = Math.min(STILE, w * 0.28, h * 0.28);
-  const inset = 0.006;
-  const innerW = w - 2 * f;
-  const innerH = h - 2 * f;
-  return (
-    <group>
-      <Box w={f} h={h} d={DOOR_T} position={[f / 2, h / 2, DOOR_T / 2]} grain="v" />
-      <Box w={f} h={h} d={DOOR_T} position={[w - f / 2, h / 2, DOOR_T / 2]} grain="v" />
-      <Box w={innerW} h={f} d={DOOR_T} position={[w / 2, h - f / 2, DOOR_T / 2]} grain="h" />
-      <Box w={innerW} h={f} d={DOOR_T} position={[w / 2, f / 2, DOOR_T / 2]} grain="h" />
-      <Box
-        w={innerW + 0.001}
-        h={innerH + 0.001}
-        d={DOOR_T - inset}
-        position={[w / 2, h / 2, (DOOR_T - inset) / 2]}
-        grain="v"
-        panel
-      />
-    </group>
-  );
-}
-
 function HingedDoor({
   x,
   y,
@@ -157,6 +113,8 @@ function HingedDoor({
   hinge,
   open,
   handle,
+  hitId,
+  onToggle,
 }: {
   x: number;
   y: number;
@@ -166,12 +124,19 @@ function HingedDoor({
   hinge: 'left' | 'right';
   open: boolean;
   handle: 'left' | 'right';
+  hitId: RoomInteractId;
+  onToggle: () => void;
 }) {
   const pivot = useRef<Group>(null);
   const dir = hinge === 'left' ? -1 : 1;
   useFrame((_, delta) => {
     if (!pivot.current) return;
-    pivot.current.rotation.y = MathUtils.damp(pivot.current.rotation.y, open ? dir * 1.22 : 0, 8, delta);
+    pivot.current.rotation.y = MathUtils.damp(
+      pivot.current.rotation.y,
+      open ? dir * 1.22 : 0,
+      8,
+      delta
+    );
   });
   const originX = hinge === 'left' ? x : x + w;
   const inset = 0.036;
@@ -179,8 +144,14 @@ function HingedDoor({
   return (
     <group ref={pivot} position={[originX, y, z]}>
       <group position={[hinge === 'left' ? 0 : -w, 0, 0]}>
-        <ShakerLeaf w={w} h={h} />
+        <Box w={w} h={h} d={DOOR_T} position={[w / 2, h / 2, DOOR_T / 2]} edgeBand />
         <BarHandle position={[hx, h * 0.5, DOOR_T + HANDLE_PROJ]} vertical />
+        <RoomHit
+          hitId={hitId}
+          onToggle={onToggle}
+          position={[w / 2, h / 2, DOOR_T / 2]}
+          size={[w - 0.008, h - 0.012, 0.08]}
+        />
       </group>
     </group>
   );
@@ -219,18 +190,12 @@ function Carcass({
         h={sideH}
         d={depth}
         position={[x + PANEL / 2, sideMidY, zMid]}
-        grain="v"
-        uvW={depth}
-        uvH={sideH}
       />
       <Box
         w={PANEL}
         h={sideH}
         d={depth}
         position={[x + w - PANEL / 2, sideMidY, zMid]}
-        grain="v"
-        uvW={depth}
-        uvH={sideH}
       />
       <Box
         w={innerW}
@@ -238,9 +203,6 @@ function Carcass({
         d={depth}
         position={[cx, y0 + PANEL / 2, zMid]}
         interior
-        grain="h"
-        uvW={innerW}
-        uvH={depth}
       />
       {!openTop && (
         <Box
@@ -249,9 +211,6 @@ function Carcass({
           d={depth}
           position={[cx, y0 + ih - PANEL / 2, zMid]}
           interior
-          grain="h"
-          uvW={innerW}
-          uvH={depth}
         />
       )}
       <Box
@@ -260,7 +219,6 @@ function Carcass({
         d={back}
         position={[cx, y0 + (openTop ? sideH : ih) / 2, back / 2]}
         interior
-        grain="v"
       />
       {!openTop && (
         <Box
@@ -269,9 +227,6 @@ function Carcass({
           d={depth - back - 0.04}
           position={[cx, y0 + ih * 0.48, zMid + 0.01]}
           interior
-          grain="h"
-          uvW={innerW}
-          uvH={depth}
         />
       )}
     </group>
@@ -279,11 +234,13 @@ function Carcass({
 }
 
 function SlabDrawer({ w, h }: { w: number; h: number }) {
-  return <Box w={w} h={h} d={DOOR_T} position={[w / 2, h / 2, DOOR_T / 2]} grain="h" />;
+  return <Box w={w} h={h} d={DOOR_T} position={[w / 2, h / 2, DOOR_T / 2]} edgeBand />;
 }
 
 function KickMat() {
-  return <meshStandardMaterial color={KICK} roughness={0.38} metalness={0.18} envMapIntensity={0.85} />;
+  return (
+    <meshStandardMaterial color={KICK} roughness={0.38} metalness={0.18} envMapIntensity={0.85} />
+  );
 }
 
 /** Recessed vinyl plinth — 18 mm front, dark lining so the toe-space is not a cave. */
@@ -305,11 +262,21 @@ export function JoineryKick({ x, w, returns = true }: { x: number; w: number; re
       </mesh>
       {returns && (
         <>
-          <mesh position={[x + t / 2, y, (frontZ - t) / 2]} castShadow receiveShadow raycast={() => null}>
+          <mesh
+            position={[x + t / 2, y, (frontZ - t) / 2]}
+            castShadow
+            receiveShadow
+            raycast={() => null}
+          >
             <boxGeometry args={[t, h, Math.max(0.02, frontZ - t)]} />
             <KickMat />
           </mesh>
-          <mesh position={[x + w - t / 2, y, (frontZ - t) / 2]} castShadow receiveShadow raycast={() => null}>
+          <mesh
+            position={[x + w - t / 2, y, (frontZ - t) / 2]}
+            castShadow
+            receiveShadow
+            raycast={() => null}
+          >
             <boxGeometry args={[t, h, Math.max(0.02, frontZ - t)]} />
             <KickMat />
           </mesh>
@@ -340,9 +307,6 @@ export function JoineryFascia({
       h={h - REVEAL}
       d={DOOR_T}
       position={[x + w / 2, y + h / 2, face - DOOR_T / 2]}
-      grain="v"
-      uvW={w}
-      uvH={h}
     />
   );
 }
@@ -368,14 +332,11 @@ export function JoineryEndPanel({
       h={h}
       d={depth}
       position={[x + w / 2, y + h / 2, depth / 2]}
-      grain="v"
-      uvW={depth}
-      uvH={h}
     />
   );
 }
 
-/** 6–8 mm oak packer between an appliance and the neighbouring door. */
+/** 6–8 mm laminate packer between an appliance and the neighbouring door. */
 export function JoineryPacker({
   x,
   y,
@@ -395,9 +356,6 @@ export function JoineryPacker({
       h={h}
       d={0.018}
       position={[x + w / 2, y + h / 2, depth + 0.009]}
-      grain="v"
-      uvW={0.018}
-      uvH={h}
     />
   );
 }
@@ -433,13 +391,23 @@ export function JoineryFridgeHousing({
       <JoineryEndPanel x={x} w={leftW} h={h} depth={depth} />
       <JoineryEndPanel x={openingX + openingW} w={rightW} h={h} depth={depth} />
       {leftW > 0.008 && (
-        <mesh position={[x + leftW / 2, kickH / 2 + 0.002, kickZ]} castShadow receiveShadow raycast={() => null}>
+        <mesh
+          position={[x + leftW / 2, kickH / 2 + 0.002, kickZ]}
+          castShadow
+          receiveShadow
+          raycast={() => null}
+        >
           <boxGeometry args={[leftW, kickH, 0.018]} />
           <KickMat />
         </mesh>
       )}
       {rightW > 0.008 && (
-        <mesh position={[openingX + openingW + rightW / 2, kickH / 2 + 0.002, kickZ]} castShadow receiveShadow raycast={() => null}>
+        <mesh
+          position={[openingX + openingW + rightW / 2, kickH / 2 + 0.002, kickZ]}
+          castShadow
+          receiveShadow
+          raycast={() => null}
+        >
           <boxGeometry args={[rightW, kickH, 0.018]} />
           <KickMat />
         </mesh>
@@ -451,18 +419,12 @@ export function JoineryFridgeHousing({
             h={canopyH}
             d={PANEL}
             position={[openingX + openingW / 2, openingH + canopyH / 2, depth - PANEL / 2]}
-            grain="h"
-            uvW={openingW}
-            uvH={canopyH}
           />
           <Box
             w={openingW}
             h={PANEL}
             d={depth}
             position={[openingX + openingW / 2, h - PANEL / 2, depth / 2]}
-            grain="h"
-            uvW={openingW}
-            uvH={depth}
           />
           <Box
             w={openingW}
@@ -470,9 +432,6 @@ export function JoineryFridgeHousing({
             d={depth - PANEL}
             position={[openingX + openingW / 2, openingH + PANEL / 2, (depth - PANEL) / 2]}
             interior
-            grain="h"
-            uvW={openingW}
-            uvH={depth}
           />
         </>
       )}
@@ -480,7 +439,7 @@ export function JoineryFridgeHousing({
   );
 }
 
-/** Single oak drawer under a built-in oven — fills the hole the appliance doesn't. */
+/** Matching laminate drawer under the built-in oven. */
 export function JoineryOvenDrawer({ x, w, y, h }: { x: number; w: number; y: number; h: number }) {
   const depth = KITCHEN.benchDepth;
   const frontW = w - REVEAL * 2;
@@ -492,16 +451,12 @@ export function JoineryOvenDrawer({ x, w, y, h }: { x: number; w: number; y: num
         h={h}
         d={depth}
         position={[x + PANEL / 2, y + h / 2, depth / 2]}
-        uvW={depth}
-        uvH={h}
       />
       <Box
         w={PANEL}
         h={h}
         d={depth}
         position={[x + w - PANEL / 2, y + h / 2, depth / 2]}
-        uvW={depth}
-        uvH={h}
       />
       <Box
         w={w - 2 * PANEL}
@@ -509,7 +464,6 @@ export function JoineryOvenDrawer({ x, w, y, h }: { x: number; w: number; y: num
         d={depth}
         position={[x + w / 2, y + PANEL / 2, depth / 2]}
         interior
-        grain="h"
       />
       <Box
         w={w - 2 * PANEL}
@@ -551,7 +505,7 @@ export function JoinerySubtop({
   const h = 0.014;
   if (cutX == null || cutW == null || cutZ0 == null || cutZ1 == null) {
     return (
-      <Box w={w + 0.01} h={h} d={d} position={[x + w / 2, y, d / 2]} grain="h" uvW={w} uvH={d} />
+      <Box w={w + 0.01} h={h} d={d} position={[x + w / 2, y, d / 2]} />
     );
   }
   const x1 = x + w;
@@ -560,17 +514,24 @@ export function JoinerySubtop({
   const frontD = Math.max(0, d - cutZ1);
   return (
     <group>
-      <Box w={cutX - x} h={h} d={d} position={[x + (cutX - x) / 2, y, d / 2]} grain="h" uvW={cutX - x} uvH={d} />
-      <Box w={x1 - cutR} h={h} d={d} position={[cutR + (x1 - cutR) / 2, y, d / 2]} grain="h" uvW={x1 - cutR} uvH={d} />
+      <Box
+        w={cutX - x}
+        h={h}
+        d={d}
+        position={[x + (cutX - x) / 2, y, d / 2]}
+      />
+      <Box
+        w={x1 - cutR}
+        h={h}
+        d={d}
+        position={[cutR + (x1 - cutR) / 2, y, d / 2]}
+      />
       {backD >= 0.004 && (
         <Box
           w={cutW}
           h={h}
           d={backD}
           position={[cutX + cutW / 2, y, backD / 2]}
-          grain="h"
-          uvW={cutW}
-          uvH={backD}
         />
       )}
       {frontD >= 0.004 && (
@@ -579,9 +540,6 @@ export function JoinerySubtop({
           h={h}
           d={frontD}
           position={[cutX + cutW / 2, y, (cutZ1 + d) / 2]}
-          grain="h"
-          uvW={cutW}
-          uvH={frontD}
         />
       )}
     </group>
@@ -598,6 +556,8 @@ export function JoineryBay({
   kind,
   drawers = false,
   openTop = false,
+  hitId,
+  onToggle,
 }: {
   x: number;
   w: number;
@@ -605,6 +565,8 @@ export function JoineryBay({
   h: number;
   depth: number;
   open: boolean;
+  hitId: RoomInteractId;
+  onToggle: () => void;
   kind: 'base' | 'upper';
   drawers?: boolean;
   openTop?: boolean;
@@ -619,7 +581,12 @@ export function JoineryBay({
   const slide = useRef<Group>(null);
   useFrame((_, delta) => {
     if (!slide.current) return;
-    slide.current.position.z = MathUtils.damp(slide.current.position.z, open && drawers ? 0.22 : 0, 8, delta);
+    slide.current.position.z = MathUtils.damp(
+      slide.current.position.z,
+      open && drawers ? 0.22 : 0,
+      8,
+      delta
+    );
   });
 
   let fronts: ReactNode = null;
@@ -629,6 +596,12 @@ export function JoineryBay({
     const dh = (doorH - gaps) / n;
     fronts = (
       <group ref={slide}>
+        <RoomHit
+          hitId={hitId}
+          onToggle={onToggle}
+          position={[leftX + doorW / 2, doorY + doorH / 2, doorZ + DOOR_T / 2]}
+          size={[doorW - 0.008, doorH - 0.012, 0.08]}
+        />
         {Array.from({ length: n }, (_, i) => {
           const dy = doorY + REVEAL + i * (dh + REVEAL);
           return (
@@ -647,7 +620,18 @@ export function JoineryBay({
   } else if (pair) {
     fronts = (
       <>
-        <HingedDoor x={leftX} y={doorY} z={doorZ} w={doorW} h={doorH} hinge="left" handle="right" open={open} />
+        <HingedDoor
+          x={leftX}
+          y={doorY}
+          z={doorZ}
+          w={doorW}
+          h={doorH}
+          hinge="left"
+          handle="right"
+          open={open}
+          hitId={hitId}
+          onToggle={onToggle}
+        />
         <HingedDoor
           x={leftX + doorW + REVEAL}
           y={doorY}
@@ -657,17 +641,34 @@ export function JoineryBay({
           hinge="right"
           handle="left"
           open={open}
+          hitId={hitId}
+          onToggle={onToggle}
         />
       </>
     );
   } else {
-    fronts = <HingedDoor x={leftX} y={doorY} z={doorZ} w={doorW} h={doorH} hinge="left" handle="right" open={open} />;
+    fronts = (
+      <HingedDoor
+        x={leftX}
+        y={doorY}
+        z={doorZ}
+        w={doorW}
+        h={doorH}
+        hinge="left"
+        handle="right"
+        open={open}
+        hitId={hitId}
+        onToggle={onToggle}
+      />
+    );
   }
 
   return (
     <group>
       <Carcass x={x} y={y} w={w} h={h} depth={depth - 0.004} kick={kick} openTop={openTop} />
-      {fronts}
+      <JoineryFinish.Provider value={kind === 'base' ? '#656c54' : JOINERY}>
+        {fronts}
+      </JoineryFinish.Provider>
     </group>
   );
 }

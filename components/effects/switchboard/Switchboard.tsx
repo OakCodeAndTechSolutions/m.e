@@ -12,25 +12,25 @@ import {
   rcboX,
 } from './circuit-data';
 import { DeviceRow } from './devices/DeviceRow';
-import { DIN, DIN_Z, MM } from './din';
 import { CombBus } from './CombBus';
 import { DinRail } from './DinRail';
+import { DIN, DIN_Z, MM } from './din';
 import { Enclosure } from './Enclosure';
 import { EnclosureCover } from './EnclosureCover';
+import { useGameInput } from './learning-room/GameInputContext';
 import { MainSwitch } from './MainSwitch';
 import { useSwitchboardMaterials } from './materials';
 import { TripFlash } from './parts/TripFlash';
 import { Rcbo } from './Rcbo';
-import { TerminalBars } from './TerminalBars';
 import { useSwitchboard } from './SwitchboardContext';
+import { TerminalBars } from './TerminalBars';
+import { Wiring } from './Wiring';
 import {
   type LabelStripCell,
   useLabelStripTexture,
   useMainSwitchPlateTexture,
   useRcdNoticeTexture,
 } from './textures';
-import { Wiring } from './Wiring';
-import { useGameInput } from './learning-room/GameInputContext';
 
 const STRIP_H = 0.3;
 
@@ -88,9 +88,8 @@ function useEscutcheonGeometry() {
 }
 
 /**
- * Circuit designation strip — one label per pole, directly under the devices
- * (AS/NZS 3000 2.9.3: every protective device identified by circuit). It sits flush
- * on the escutcheon; with the escutcheon off it drops below the terminals.
+ * Circuit designations sit beneath the devices on the escutcheon. The cutaway
+ * shows a separate copy of the schedule against the back of the tub.
  */
 function LabelStrip({ onEscutcheon }: { onEscutcheon: boolean }) {
   const cells = useMemo<LabelStripCell[]>(
@@ -106,10 +105,14 @@ function LabelStrip({ onEscutcheon }: { onEscutcheon: boolean }) {
   const width = x1 - x0;
   const y = onEscutcheon
     ? BOARD.railY - CUTOUT.height / 2 - 3 * MM - STRIP_H / 2
-    : BOARD.railY - DIN.height / 2 - 8 * MM - STRIP_H / 2;
+    : -BOARD.height / 2 + 5.5 * MM + STRIP_H / 2;
   return (
     <mesh
-      position={[(x0 + x1) / 2, y, onEscutcheon ? ESC_FACE + 0.6 * MM : ESC_FACE]}
+      position={[
+        (x0 + x1) / 2,
+        y,
+        onEscutcheon ? ESC_FACE + 0.6 * MM : -BOARD.depth / 2 + 3.2 * MM,
+      ]}
       receiveShadow
       raycast={() => null}
     >
@@ -186,7 +189,7 @@ function RcdNotice({ z }: { z: number }) {
 
 /** Composes board assemblies. State lives in SwitchboardProvider. */
 export function Switchboard() {
-  const { wiringView } = useGameInput();
+  const { traceCircuit } = useGameInput();
   const materials = useSwitchboardMaterials();
   const {
     mainOn,
@@ -196,40 +199,30 @@ export function Switchboard() {
     toggleMain,
     toggleRcbo,
     tripRcbo,
-    liveById,
     flashCircuit,
     hovered,
     coverOpen,
     requestCoverOpen,
     closeCover,
-    shockOnWire,
-    shockOnMains,
   } = useSwitchboard();
 
   const boardUnlocked = coverOpen;
+  const cutaway = boardUnlocked && traceCircuit !== '';
 
   return (
     <group>
       <Enclosure materials={materials} />
       <group visible={boardUnlocked}>
-        {wiringView && (
-          <group>
+        {cutaway ? (
+          <>
             <DinRail materials={materials} />
             <TerminalBars materials={materials} />
             <CombBus materials={materials} />
-            <Wiring
-              materials={materials}
-              liveById={liveById}
-              mainLive={mainOn}
-              coverOpen={false}
-              onShockWire={shockOnWire}
-              onShockMains={shockOnMains}
-            />
-          </group>
+            <Wiring materials={materials} traceCircuit={traceCircuit} />
+          </>
+        ) : (
+          <Escutcheon />
         )}
-
-        {/* Fixed escutcheon: ordinary operation never exposes terminals. */}
-        {!wiringView && <Escutcheon />}
 
         {flashCircuit && (
           <TripFlash x={rcboX(flashCircuit.index)} active={tripFlashId === flashCircuit.id} />
@@ -254,18 +247,12 @@ export function Switchboard() {
             disabled={!boardUnlocked}
           />
         ))}
-        <LabelStrip onEscutcheon={!wiringView} />
-        {!wiringView && <MainSwitchPlate />}
-        {/* Cover-mounted labels go with the cover in wiring view. */}
-        {!wiringView && <RcdNotice z={ESC_FACE + 0.5 * MM} />}
+        <LabelStrip onEscutcheon={!cutaway} />
+        {!cutaway && <MainSwitchPlate />}
+        {!cutaway && <RcdNotice z={ESC_FACE + 0.5 * MM} />}
       </group>
 
-      <EnclosureCover
-        materials={materials}
-        open={coverOpen}
-        onRequestOpen={requestCoverOpen}
-        onClose={closeCover}
-      />
+      <EnclosureCover open={coverOpen} onRequestOpen={requestCoverOpen} onClose={closeCover} />
     </group>
   );
 }

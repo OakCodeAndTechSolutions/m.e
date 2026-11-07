@@ -2,18 +2,21 @@
 
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
-import { useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, type RefObject } from 'react';
 import {
   Box3,
   CanvasTexture,
   DoubleSide,
   Group,
   MathUtils,
+  Matrix4,
   Mesh,
   MeshStandardMaterial,
   Object3D,
+  Path,
   Quaternion,
   RepeatWrapping,
+  Shape,
   SRGBColorSpace,
   Vector3,
 } from 'three';
@@ -40,13 +43,21 @@ import { RoomHit } from './RoomHit';
 import { SwitchedPowerPoint } from './SwitchedPowerPoint';
 
 const BENCH_T = 0.03;
-const BENCH_Y = KITCHEN.benchH + BENCH_T / 2;
+const BENCH_EDGE = 0.0018;
+const BENCH_EXTRUSION = {
+  depth: BENCH_T - BENCH_EDGE * 2,
+  bevelEnabled: true,
+  bevelSize: BENCH_EDGE,
+  bevelThickness: BENCH_EDGE,
+  bevelSegments: 1,
+  steps: 1,
+};
 const FACE = KITCHEN.benchDepth;
 /** Center of overlay doors (hinge on FACE, 18 mm thick). */
 const FRONT = FACE + 0.018;
 /** Marble hole sits under the rim so the cupboard never shows around the bowls. */
 const SINK_CUT = { w: 0.72, d: 0.42, cz: 0.3 } as const;
-/** Built-in oven is 595 mm; leftover under the bench is an oak drawer + 16 mm rail. */
+/** The built-in oven sits above a shallow drawer and a 16 mm rail. */
 const RAIL_H = 0.016;
 const OVEN_H = 0.595;
 const OVEN_DRAWER_H = KITCHEN.benchH - KITCHEN.kickH - RAIL_H - OVEN_H;
@@ -57,112 +68,101 @@ const HOUSING_H = KITCHEN.upperY + KITCHEN.upperH;
 const FRIDGE_W = 1.09;
 const FRIDGE_H = 1.82;
 
-function BenchSlab({
-  x0,
-  x1,
-  z0,
-  z1,
-  maps,
-}: {
-  x0: number;
-  x1: number;
-  z0: number;
-  z1: number;
-  maps: ReturnType<typeof useRepeatingPbr>;
-}) {
-  const w = x1 - x0;
-  const d = z1 - z0;
-  if (w < 0.01 || d < 0.01) return null;
+/** A continuous honed slab, with the sink cut into it and a softened exposed edge. */
+function BenchRun({ startX, endX, sinkX }: { startX: number; endX: number; sinkX: number }) {
+  const maps = useRepeatingPbr(POLYHAVEN.marbleSlab, [0.58, 0.58]);
+  const slab = useMemo(() => {
+    const outline = new Shape();
+    const front = -(KITCHEN.benchDepth + 0.03 - BENCH_EDGE);
+    outline.moveTo(startX - 0.004 + BENCH_EDGE, -BENCH_EDGE);
+    outline.lineTo(endX + 0.004 - BENCH_EDGE, -BENCH_EDGE);
+    outline.lineTo(endX + 0.004 - BENCH_EDGE, front);
+    outline.lineTo(startX - 0.004 + BENCH_EDGE, front);
+    outline.closePath();
+
+    const cut = new Path();
+    const left = sinkX - SINK_CUT.w / 2 - BENCH_EDGE;
+    const right = sinkX + SINK_CUT.w / 2 + BENCH_EDGE;
+    const back = -(SINK_CUT.cz - SINK_CUT.d / 2 - BENCH_EDGE);
+    const innerFront = -(SINK_CUT.cz + SINK_CUT.d / 2 + BENCH_EDGE);
+    cut.moveTo(left, back);
+    cut.lineTo(left, innerFront);
+    cut.lineTo(right, innerFront);
+    cut.lineTo(right, back);
+    cut.closePath();
+    outline.holes.push(cut);
+    return outline;
+  }, [startX, endX, sinkX]);
   return (
-    <mesh position={[(x0 + x1) / 2, BENCH_Y, (z0 + z1) / 2]} castShadow receiveShadow>
-      <boxGeometry args={[w, BENCH_T, d]} />
+    <mesh
+      position={[0, KITCHEN.benchH + BENCH_EDGE, 0]}
+      rotation-x={-Math.PI / 2}
+      castShadow
+      receiveShadow
+    >
+      <extrudeGeometry args={[slab, BENCH_EXTRUSION]} />
       <meshStandardMaterial
         map={maps.map}
         normalMap={maps.normalMap}
+        normalScale={[0.22, 0.22]}
         roughnessMap={maps.roughnessMap}
-        roughness={0.38}
-        metalness={0.06}
-        envMapIntensity={1.05}
+        roughness={0.72}
       />
     </mesh>
   );
 }
 
-/** Benchtop with a sink cutout so the bowls sit in the bench, not on it. */
-function BenchRun({ startX, endX, sinkX }: { startX: number; endX: number; sinkX: number }) {
-  const w = endX - startX;
-  const maps = useRepeatingPbr(POLYHAVEN.marbleSlab, [Math.max(1.2, w / 2.1), 0.32]);
-  const zMin = 0;
-  const zMax = KITCHEN.benchDepth + 0.018;
-  const cutL = sinkX - SINK_CUT.w / 2;
-  const cutR = sinkX + SINK_CUT.w / 2;
-  const cutBack = SINK_CUT.cz - SINK_CUT.d / 2;
-  const cutFront = SINK_CUT.cz + SINK_CUT.d / 2;
-  const frontT = 0.012;
-  return (
-    <group>
-      <BenchSlab maps={maps} x0={startX - 0.004} x1={cutL} z0={zMin} z1={zMax} />
-      <BenchSlab maps={maps} x0={cutR} x1={endX + 0.004} z0={zMin} z1={zMax} />
-      <BenchSlab maps={maps} x0={cutL} x1={cutR} z0={zMin} z1={cutBack} />
-      <BenchSlab maps={maps} x0={cutL} x1={cutR} z0={cutFront} z1={zMax} />
-      <mesh position={[(startX + endX) / 2, BENCH_Y, zMax + frontT / 2]} castShadow receiveShadow>
-        <boxGeometry args={[w + 0.008, BENCH_T, frontT]} />
-        <meshStandardMaterial
-          map={maps.map}
-          normalMap={maps.normalMap}
-          roughnessMap={maps.roughnessMap}
-          roughness={0.38}
-          metalness={0.06}
-          envMapIntensity={1.05}
-        />
-      </mesh>
-    </group>
-  );
-}
-
-/** Emerald subway with white grout — repeating atlas so grout stays sharp. */
-function useEmeraldSubway(w: number, h: number) {
-  return useMemo(() => {
-    const tileW = 0.15;
-    const tileH = 0.075;
+/** Warm glazed subway with pale grout — repeating atlas so grout stays sharp. */
+function useGlazedSubway(w: number, h: number) {
+  const map = useMemo(() => {
+    const columns = 8;
+    const rows = 4;
+    const tileW = 128;
+    const tileH = 64;
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 256;
+    canvas.width = tileW * columns;
+    canvas.height = tileH * rows;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('2D context unavailable');
-    ctx.fillStyle = '#f4f1ea';
-    ctx.fillRect(0, 0, 512, 256);
-    const gx = 7;
-    const gy = 7;
-    const tw = 256;
-    const th = 128;
-    const paint = (x: number, y: number, n: number) => {
-      ctx.fillStyle = `rgb(${20 + n}, ${94 + n}, ${70 + n})`;
-      ctx.fillRect(x + gx, y + gy, tw - gx * 2, th - gy * 2);
-    };
-    paint(0, 0, 0);
-    paint(256, 0, 2);
-    paint(-128, 128, -2);
-    paint(128, 128, 1);
-    paint(384, 128, 3);
+    ctx.fillStyle = '#b9aa96';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (let row = 0; row < rows; row++) {
+      for (let column = -1; column < columns; column++) {
+        const x = (column + (row % 2) * 0.5) * tileW;
+        const y = row * tileH;
+        const tone = Math.sin((row * columns + ((column + columns) % columns)) * 3.17) * 8;
+        const color = (offset: number) =>
+          `rgb(${208 + tone + offset}, ${190 + tone + offset}, ${165 + tone + offset})`;
+        const glaze = ctx.createLinearGradient(x, y, x, y + tileH);
+        glaze.addColorStop(0, color(15));
+        glaze.addColorStop(0.1, color(5));
+        glaze.addColorStop(0.65, color(0));
+        glaze.addColorStop(0.95, color(-5));
+        glaze.addColorStop(1, color(-17));
+        ctx.fillStyle = glaze;
+        ctx.fillRect(x + 1.3, y + 1.3, tileW - 2.6, tileH - 2.6);
+      }
+    }
     const map = new CanvasTexture(canvas);
     map.colorSpace = SRGBColorSpace;
     map.wrapS = RepeatWrapping;
     map.wrapT = RepeatWrapping;
     map.anisotropy = 8;
-    map.repeat.set(w / (tileW * 2), h / (tileH * 2));
+    map.repeat.set(w / (0.15 * columns), h / (0.075 * rows));
     map.needsUpdate = true;
     return map;
   }, [w, h]);
+  useEffect(() => () => map.dispose(), [map]);
+  return map;
 }
 
 function TiledSplash({ x, w, h, z }: { x: number; w: number; h: number; z: number }) {
-  const map = useEmeraldSubway(w, h);
+  const map = useGlazedSubway(w, h);
   const t = 0.01;
   return (
     <mesh position={[x + w / 2, KITCHEN.benchH + BENCH_T + h / 2, z - t / 2]} receiveShadow>
       <boxGeometry args={[w, h, t]} />
-      <meshStandardMaterial map={map} roughness={0.58} metalness={0.02} envMapIntensity={0.72} />
+      <meshStandardMaterial map={map} roughness={0.42} envMapIntensity={0.72} />
     </mesh>
   );
 }
@@ -282,6 +282,26 @@ function hingeParts(root: Object3D, match: RegExp, extra?: RegExp): Group | null
   return inner;
 }
 
+/** Keep an invisible hit box on the imported door as its actual hinge moves. */
+function useHingedHit(group: RefObject<Group | null>) {
+  const restInverse = useRef(new Matrix4());
+
+  const bind = (hinge: Group | null) => {
+    if (!hinge) return;
+    hinge.updateWorldMatrix(true, false);
+    restInverse.current.copy(hinge.matrixWorld).invert();
+  };
+
+  const follow = (hinge: Group) => {
+    if (!group.current) return;
+    hinge.updateWorldMatrix(true, false);
+    group.current.matrix.multiplyMatrices(hinge.matrixWorld, restInverse.current);
+    group.current.updateMatrixWorld(true);
+  };
+
+  return { bind, follow };
+}
+
 /** Product GLB whose door/glass mesh drops open around the bottom-front edge. */
 function HingedAppliance({
   open,
@@ -301,7 +321,15 @@ function HingedAppliance({
   envIntensity,
   hide,
   prepare,
+  hitId,
+  hitSize,
+  hitPosition,
+  onToggle,
 }: {
+  hitId: 'oven' | 'dishwasher';
+  hitSize: [number, number, number];
+  hitPosition: [number, number, number];
+  onToggle: () => void;
   url: string;
   maxSize: [number, number, number];
   position?: [number, number, number];
@@ -321,32 +349,41 @@ function HingedAppliance({
   axis?: 'x' | 'y';
 }) {
   const pivot = useRef<Group | null>(null);
+  const hitGroup = useRef<Group>(null);
+  const hit = useHingedHit(hitGroup);
   useFrame((_, delta) => {
     const g = pivot.current;
     if (!g) return;
     const target = open ? openAngle : 0;
     if (axis === 'y') g.rotation.y = MathUtils.damp(g.rotation.y, target, 8, delta);
     else g.rotation.x = MathUtils.damp(g.rotation.x, target, 8, delta);
+    hit.follow(g);
   });
   return (
-    <FittedGltf
-      url={url}
-      maxSize={maxSize}
-      position={position}
-      rotation={rotation}
-      align={align}
-      pin={pin}
-      pinPad={pinPad}
-      fit={fit}
-      preScale={preScale}
-      envIntensity={envIntensity}
-      hide={hide}
-      prepare={prepare ?? dressKitchenProduct}
-      onReady={(root) => {
-        const pre = findNamed(root, /^door_drop$/);
-        pivot.current = (pre as Group | null) ?? hingeParts(root, doorMatch, extraMatch);
-      }}
-    />
+    <>
+      <FittedGltf
+        url={url}
+        maxSize={maxSize}
+        position={position}
+        rotation={rotation}
+        align={align}
+        pin={pin}
+        pinPad={pinPad}
+        fit={fit}
+        preScale={preScale}
+        envIntensity={envIntensity}
+        hide={hide}
+        prepare={prepare ?? dressKitchenProduct}
+        onReady={(root) => {
+          const pre = findNamed(root, /^door_drop$/);
+          pivot.current = (pre as Group | null) ?? hingeParts(root, doorMatch, extraMatch);
+          hit.bind(pivot.current);
+        }}
+      />
+      <group ref={hitGroup} matrixAutoUpdate={false}>
+        <RoomHit hitId={hitId} size={hitSize} position={hitPosition} onToggle={onToggle} />
+      </group>
+    </>
   );
 }
 
@@ -354,40 +391,76 @@ function FrenchFridge({
   open,
   position,
   maxSize,
+  onToggle,
 }: {
   open: boolean;
+  onToggle: () => void;
   position: [number, number, number];
   maxSize: [number, number, number];
 }) {
   const left = useRef<Group | null>(null);
   const right = useRef<Group | null>(null);
+  const leftHitGroup = useRef<Group>(null);
+  const rightHitGroup = useRef<Group>(null);
+  const leftHit = useHingedHit(leftHitGroup);
+  const rightHit = useHingedHit(rightHitGroup);
   useFrame((_, delta) => {
-    if (left.current)
+    if (left.current) {
       left.current.rotation.y = MathUtils.damp(left.current.rotation.y, open ? -1.22 : 0, 8, delta);
-    if (right.current)
+      leftHit.follow(left.current);
+    }
+    if (right.current) {
       right.current.rotation.y = MathUtils.damp(
         right.current.rotation.y,
         open ? 1.22 : 0,
         8,
         delta
       );
+      rightHit.follow(right.current);
+    }
   });
   return (
-    <FittedGltf
-      url={ROOM_GLB.fridge}
-      maxSize={maxSize}
-      position={position}
-      align="bottom"
-      pin="front"
-      pinPad={0.16}
-      fit="contain"
-      prepare={prepareFrenchFridgeDoors3}
-      envIntensity={1}
-      onReady={(root) => {
-        left.current = findNamed(root, /^door_l$/) as Group | null;
-        right.current = findNamed(root, /^door_r$/) as Group | null;
-      }}
-    />
+    <>
+      <FittedGltf
+        url={ROOM_GLB.fridge}
+        maxSize={maxSize}
+        position={position}
+        align="bottom"
+        pin="front"
+        pinPad={0.16}
+        fit="contain"
+        prepare={prepareFrenchFridgeDoors3}
+        envIntensity={1}
+        onReady={(root) => {
+          left.current = findNamed(root, /^door_l$/) as Group | null;
+          right.current = findNamed(root, /^door_r$/) as Group | null;
+          leftHit.bind(left.current);
+          rightHit.bind(right.current);
+        }}
+      />
+      <group ref={leftHitGroup} matrixAutoUpdate={false}>
+        <RoomHit
+          hitId="fridge"
+          onToggle={onToggle}
+          size={[maxSize[0] * 0.48, maxSize[1] * 0.67, 0.16]}
+          position={[position[0] - maxSize[0] / 4, maxSize[1] * 0.66, position[2] + 0.16]}
+        />
+      </group>
+      <group ref={rightHitGroup} matrixAutoUpdate={false}>
+        <RoomHit
+          hitId="fridge"
+          onToggle={onToggle}
+          size={[maxSize[0] * 0.48, maxSize[1] * 0.67, 0.16]}
+          position={[position[0] + maxSize[0] / 4, maxSize[1] * 0.66, position[2] + 0.16]}
+        />
+      </group>
+      <RoomHit
+        hitId="fridge"
+        onToggle={onToggle}
+        size={[maxSize[0] * 0.95, maxSize[1] * 0.34, 0.16]}
+        position={[position[0], maxSize[1] * 0.17, position[2] + 0.16]}
+      />
+    </>
   );
 }
 
@@ -699,6 +772,8 @@ export function KitchenRun({
       <UnderCabinetLed x0={cabL.x} x1={fridge.x} live={lightsOn} />
 
       <JoineryBay
+        hitId="sink-base"
+        onToggle={() => onToggle('sink-base')}
         x={sink.x}
         w={sink.w}
         y={0}
@@ -709,6 +784,8 @@ export function KitchenRun({
         openTop
       />
       <JoineryBay
+        hitId="cabA-base"
+        onToggle={() => onToggle('cabA-base')}
         x={cabA.x}
         w={cabA.w}
         y={0}
@@ -719,6 +796,8 @@ export function KitchenRun({
         drawers
       />
       <JoineryBay
+        hitId="cabL-base"
+        onToggle={() => onToggle('cabL-base')}
         x={cabL.x}
         w={cabL.w}
         y={0}
@@ -728,6 +807,8 @@ export function KitchenRun({
         kind="base"
       />
       <JoineryBay
+        hitId="cabR-base"
+        onToggle={() => onToggle('cabR-base')}
         x={cabR.x}
         w={cabR.w}
         y={0}
@@ -738,6 +819,8 @@ export function KitchenRun({
       />
 
       <JoineryBay
+        hitId="sink-upper"
+        onToggle={() => onToggle('sink-upper')}
         x={sink.x}
         w={sink.w}
         y={KITCHEN.upperY}
@@ -747,6 +830,8 @@ export function KitchenRun({
         kind="upper"
       />
       <JoineryBay
+        hitId="cabA-upper"
+        onToggle={() => onToggle('cabA-upper')}
         x={cabA.x}
         w={cabA.w}
         y={KITCHEN.upperY}
@@ -756,6 +841,8 @@ export function KitchenRun({
         kind="upper"
       />
       <JoineryBay
+        hitId="cabL-upper"
+        onToggle={() => onToggle('cabL-upper')}
         x={cabL.x}
         w={cabL.w}
         y={KITCHEN.upperY}
@@ -765,6 +852,8 @@ export function KitchenRun({
         kind="upper"
       />
       <JoineryBay
+        hitId="dw-upper"
+        onToggle={() => onToggle('dw-upper')}
         x={dw.x}
         w={dw.w}
         y={KITCHEN.upperY}
@@ -774,6 +863,8 @@ export function KitchenRun({
         kind="upper"
       />
       <JoineryBay
+        hitId="cabR-upper"
+        onToggle={() => onToggle('cabR-upper')}
         x={cabR.x}
         w={cabR.w}
         y={KITCHEN.upperY}
@@ -814,6 +905,10 @@ export function KitchenRun({
       <JoineryOvenDrawer x={cook.x} w={cook.w} y={KITCHEN.kickH} h={OVEN_DRAWER_H} />
       <HingedAppliance
         url={ROOM_GLB.oven}
+        hitId="oven"
+        hitSize={[cook.w - 0.04, OVEN_H, 0.16]}
+        hitPosition={[FIXTURES.oven.x, ovenY + OVEN_H / 2, FRONT + 0.04]}
+        onToggle={() => onToggle('oven')}
         maxSize={[cook.w - 0.008, OVEN_H, 0.72]}
         position={[FIXTURES.oven.x, ovenY, FRONT]}
         rotation={[0, -Math.PI / 2, 0]}
@@ -848,6 +943,10 @@ export function KitchenRun({
       />
       <HingedAppliance
         url={ROOM_GLB.dishwasher}
+        hitId="dishwasher"
+        hitSize={[dw.w - 0.04, DW_H, 0.16]}
+        hitPosition={[FIXTURES.dishwasher.x, KITCHEN.kickH + DW_H / 2, FRONT + 0.04]}
+        onToggle={() => onToggle('dishwasher')}
         maxSize={[dw.w - 0.01, DW_H - 0.008, 0.58]}
         position={[dw.x + dw.w / 2, KITCHEN.kickH + 0.002, FRONT]}
         align="bottom"
@@ -871,6 +970,7 @@ export function KitchenRun({
         depth={gableDepth}
       />
       <FrenchFridge
+        onToggle={onToggleFridge}
         open={fridgeOpen}
         maxSize={[FRIDGE_W - 0.02, FRIDGE_H, 0.7]}
         position={[fridgeMid, 0, FRONT]}
@@ -894,78 +994,6 @@ export function KitchenRun({
         hitId="cooktop"
         size={[0.56, 0.1, 0.48]}
         position={[cookX, benchY + 0.08, benchZ]}
-      />
-      <RoomHit
-        onToggle={() => onToggle('oven')}
-        hitId="oven"
-        size={[cook.w - 0.04, OVEN_H, 0.28]}
-        position={[FIXTURES.oven.x, ovenY + OVEN_H / 2, 0.78]}
-      />
-      <RoomHit
-        onToggle={() => onToggle('dishwasher')}
-        hitId="dishwasher"
-        size={[dw.w - 0.04, DW_H, 0.28]}
-        position={[FIXTURES.dishwasher.x, KITCHEN.kickH + DW_H / 2, 0.78]}
-      />
-      <RoomHit
-        onToggle={onToggleFridge}
-        hitId="fridge"
-        size={[FRIDGE_W, FRIDGE_H, 0.32]}
-        position={[fridgeMid, FRIDGE_H / 2, 0.86]}
-      />
-      <RoomHit
-        onToggle={() => onToggle('sink-base')}
-        hitId="sink-base"
-        size={[0.7, 0.55, 0.22]}
-        position={[0.68, 0.42, 0.74]}
-      />
-      <RoomHit
-        onToggle={() => onToggle('cabA-base')}
-        hitId="cabA-base"
-        size={[0.4, 0.55, 0.22]}
-        position={[1.3, 0.42, 0.74]}
-      />
-      <RoomHit
-        onToggle={() => onToggle('cabL-base')}
-        hitId="cabL-base"
-        size={[0.8, 0.55, 0.22]}
-        position={[2.58, 0.42, 0.74]}
-      />
-      <RoomHit
-        onToggle={() => onToggle('cabR-base')}
-        hitId="cabR-base"
-        size={[0.8, 0.55, 0.22]}
-        position={[4.08, 0.42, 0.74]}
-      />
-      <RoomHit
-        onToggle={() => onToggle('sink-upper')}
-        hitId="sink-upper"
-        size={[0.7, 0.45, 0.16]}
-        position={[0.68, 1.78, 0.48]}
-      />
-      <RoomHit
-        onToggle={() => onToggle('cabA-upper')}
-        hitId="cabA-upper"
-        size={[0.4, 0.45, 0.16]}
-        position={[1.3, 1.78, 0.48]}
-      />
-      <RoomHit
-        onToggle={() => onToggle('cabL-upper')}
-        hitId="cabL-upper"
-        size={[0.8, 0.45, 0.16]}
-        position={[2.58, 1.78, 0.48]}
-      />
-      <RoomHit
-        onToggle={() => onToggle('dw-upper')}
-        hitId="dw-upper"
-        size={[0.52, 0.45, 0.16]}
-        position={[3.33, 1.78, 0.48]}
-      />
-      <RoomHit
-        onToggle={() => onToggle('cabR-upper')}
-        hitId="cabR-upper"
-        size={[0.8, 0.45, 0.16]}
-        position={[4.08, 1.78, 0.48]}
       />
       <RoomHit
         onToggle={onToggleToaster}
@@ -1032,7 +1060,7 @@ export function KitchenRun({
       />
       <pointLight
         position={[hood.x, 1.48, 0.28]}
-        intensity={powerLive ? 0.28 : 0}
+        intensity={lightsOn ? 0.28 : 0}
         distance={2.6}
         color="#f4f1ea"
       />

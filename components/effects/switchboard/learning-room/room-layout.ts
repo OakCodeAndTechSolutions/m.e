@@ -1,6 +1,5 @@
 import { BOARD, CIRCUITS, moduleBodyZ } from '../circuit-data';
 import { BOARD_METRES_PER_UNIT, DIN_Z } from '../din';
-import { circuitExitGland } from '../wiring/wire-paths';
 import type { Vec3 } from '../circuit-data';
 
 /** Corner at origin. Board wall = x=0 (faces +X). Kitchen wall = z=0 (faces +Z). */
@@ -42,13 +41,13 @@ export const ROOM_LOADS = {
 const BOARD_SCALE = BOARD_METRES_PER_UNIT;
 
 /**
- * Flush-mounted in the framed wall opening: the tub sits in the cavity and only the
- * frame (a few mm proud of the plaster) and door show. Centred at 1.5 m.
+ * Flush tub in the framed opening of the unlined board wall: its back is flush with the
+ * back of the 90 mm studs and its frame finishes on the plaster line. Centred at 1.5 m.
  */
 export const BOARD_MOUNT = {
   scale: BOARD_SCALE,
   rotY: Math.PI / 2,
-  x: 0.006 - BOARD.frontZ * BOARD_SCALE,
+  x: -0.09 + (BOARD.depth / 2) * BOARD_SCALE,
   y: 1.5,
   z: 5.35,
 } as const;
@@ -127,9 +126,13 @@ export const HEIGHTS = {
 } as const;
 
 export const IDLE_CAMERA = {
-  position: [6.65, 1.68, 5.75] as Vec3,
-  target: [2.5, 1.12, 1.15] as Vec3,
+  position: [6.15, 1.68, 5.8] as Vec3,
+  target: [1.8, 1.23, 2.25] as Vec3,
 };
+
+export const ISLAND = { x: 2.67, z: 2.15, w: 2.18, d: 0.91 } as const;
+export const DINING = { x: 6.85, z: 2.6, w: 1.48, d: 1.8 } as const;
+export const GUM = { x: 7.76, z: 5.95, w: 0.42, d: 0.42 } as const;
 
 /**
  * Kitchen elevation along +X.
@@ -147,13 +150,15 @@ export const KITCHEN_BAYS = {
   fridge: { x: 4.53, w: 1.15 },
 } as const;
 
+/** Plates on the unlined board wall sit on their wall boxes at the plaster line. */
+const BOARD_WALL_PLATE_X = 0.018;
+
 export const FIXTURES = {
-  /** Board (z≈5.35) → this switch → papers/lights → kitchen. */
-  lightSwitch: { x: 0.006, y: HEIGHTS.switch, z: 4.5 },
-  wallLight1: { x: 0.022, y: HEIGHTS.light, z: 3.25 },
-  wallLight2: { x: 0.022, y: HEIGHTS.light, z: 3.95 },
-  portrait1: { x: 0.014, y: HEIGHTS.portrait, z: 3.25 },
-  portrait2: { x: 0.014, y: HEIGHTS.portrait, z: 3.95 },
+  /** On a box beside the 4.5 m stud (see exposed-wall SWITCH_BOX). */
+  lightSwitch: { x: BOARD_WALL_PLATE_X, y: HEIGHTS.switch, z: 4.5515 },
+  /** Framed prints on the lounge wall, either side of the TV run. */
+  portrait1: { x: 0.74, y: HEIGHTS.portrait, z: ROOM.depth - 0.014 },
+  portrait2: { x: 5.32, y: HEIGHTS.portrait, z: ROOM.depth - 0.014 },
   sink: { x: 0.68, y: KITCHEN.benchH, z: 0.32 },
   cooktop: { x: 1.83, y: KITCHEN.benchH, z: 0.3 },
   oven: { x: 1.83, y: 0, z: 0.3 },
@@ -168,8 +173,8 @@ export const FIXTURES = {
   gpoSingle: { x: 2.88, y: KITCHEN.splashGpoY, z: 0.018 },
   fridge: { x: 5.1, y: 0, z: 0.38 },
   fridgeGpo: { x: 4.95, y: KITCHEN.splashGpoY, z: 0.018 },
-  /** Board wall, lounge side of the enclosure — opposite the kitchen switch. */
-  loungeDimmerA: { x: 0.006, y: HEIGHTS.switch, z: 6.42 },
+  /** Board wall, on a box beside the 6.75 m stud (see exposed-wall DIMMER_BOX). */
+  loungeDimmerA: { x: BOARD_WALL_PLATE_X, y: HEIGHTS.switch, z: 6.6985 },
   loungeDimmerB: { x: 1.22, y: HEIGHTS.switch, z: ROOM.depth - 0.006 },
   loungeSconce1: { x: 1.38, y: HEIGHTS.light, z: ROOM.depth - 0.022 },
   loungeSconce2: { x: 4.62, y: HEIGHTS.light, z: ROOM.depth - 0.022 },
@@ -217,365 +222,6 @@ export type LoungeInteractId = 'loungeDimmerA' | 'loungeDimmerB' | 'tv' | 'tvGpo
 
 export type RoomInteractId = KitchenInteractId | LoungeInteractId;
 
-type InteractSpot<T extends string> = {
-  id: T;
-  x: number;
-  y: number;
-  z: number;
-  r: number;
-  priority: number;
-  promptOpen: string;
-  promptClose: string;
-};
-
-export type { InteractSpot };
-
-export const KITCHEN_INTERACTS: InteractSpot<KitchenInteractId>[] = [
-  {
-    id: 'switch',
-    x: FIXTURES.lightSwitch.x,
-    y: FIXTURES.lightSwitch.y,
-    z: FIXTURES.lightSwitch.z,
-    r: 0.7,
-    priority: 2,
-    promptOpen: 'F · Lights on',
-    promptClose: 'F · Lights off',
-  },
-  {
-    id: 'sink',
-    x: FIXTURES.sink.x,
-    y: FIXTURES.sink.y + 0.2,
-    z: 0.55,
-    r: 0.95,
-    priority: 2,
-    promptOpen: 'F · Run the tap',
-    promptClose: 'F · Stop tap',
-  },
-  {
-    id: 'gpoDouble',
-    x: FIXTURES.gpoDouble.x,
-    y: FIXTURES.gpoDouble.y,
-    z: 0.55,
-    r: 0.85,
-    priority: 2,
-    promptOpen: 'F · Plug / toast',
-    promptClose: 'F · Pop toaster',
-  },
-  {
-    id: 'toaster',
-    x: FIXTURES.toaster.x,
-    y: FIXTURES.toaster.y,
-    z: FIXTURES.toaster.z,
-    r: 0.9,
-    priority: 2,
-    promptOpen: 'F · Toast',
-    promptClose: 'F · Pop toaster',
-  },
-  {
-    id: 'cookIsolator',
-    x: FIXTURES.cookIsolator.x,
-    y: FIXTURES.cookIsolator.y,
-    z: 0.55,
-    r: 1.0,
-    priority: 2,
-    promptOpen: 'F · Cooktop isolator',
-    promptClose: 'F · Cooktop isolator',
-  },
-  {
-    id: 'cooktop',
-    x: FIXTURES.cooktop.x,
-    y: FIXTURES.cooktop.y,
-    z: 0.55,
-    r: 0.75,
-    priority: 2,
-    promptOpen: 'F · Boil the pot',
-    promptClose: 'F · Take pot off',
-  },
-  {
-    id: 'oven',
-    x: FIXTURES.oven.x,
-    y: 0.48,
-    z: 0.58,
-    r: 0.85,
-    priority: 2,
-    promptOpen: 'F · Open oven',
-    promptClose: 'F · Close oven',
-  },
-  {
-    id: 'dishwasher',
-    x: FIXTURES.dishwasher.x,
-    y: 0.42,
-    z: 0.58,
-    r: 0.95,
-    priority: 2,
-    promptOpen: 'F · Open dishwasher',
-    promptClose: 'F · Close dishwasher',
-  },
-  {
-    id: 'fridge',
-    x: FIXTURES.fridge.x,
-    y: 0.95,
-    z: FIXTURES.fridge.z,
-    r: 1.3,
-    priority: 1,
-    promptOpen: 'F · Open fridge',
-    promptClose: 'F · Close fridge',
-  },
-  {
-    id: 'sink-base',
-    x: 0.68,
-    y: 0.48,
-    z: 0.58,
-    r: 0.85,
-    priority: 0,
-    promptOpen: 'F · Open cupboard',
-    promptClose: 'F · Close cupboard',
-  },
-  {
-    id: 'cabA-base',
-    x: 1.3,
-    y: 0.48,
-    z: 0.58,
-    r: 0.55,
-    priority: 1,
-    promptOpen: 'F · Open drawers',
-    promptClose: 'F · Close drawers',
-  },
-  {
-    id: 'cabL-base',
-    x: 2.58,
-    y: 0.48,
-    z: 0.58,
-    r: 1.05,
-    priority: 0,
-    promptOpen: 'F · Open cupboard',
-    promptClose: 'F · Close cupboard',
-  },
-  {
-    id: 'cabR-base',
-    x: 4.08,
-    y: 0.48,
-    z: 0.58,
-    r: 1.05,
-    priority: 0,
-    promptOpen: 'F · Open cupboard',
-    promptClose: 'F · Close cupboard',
-  },
-  {
-    id: 'sink-upper',
-    x: 0.68,
-    y: 1.78,
-    z: 0.4,
-    r: 0.85,
-    priority: 0,
-    promptOpen: 'F · Open overhead',
-    promptClose: 'F · Close overhead',
-  },
-  {
-    id: 'cabA-upper',
-    x: 1.3,
-    y: 1.78,
-    z: 0.4,
-    r: 0.8,
-    priority: 0,
-    promptOpen: 'F · Open overhead',
-    promptClose: 'F · Close overhead',
-  },
-  {
-    id: 'cabL-upper',
-    x: 2.58,
-    y: 1.78,
-    z: 0.4,
-    r: 1.05,
-    priority: 0,
-    promptOpen: 'F · Open overhead',
-    promptClose: 'F · Close overhead',
-  },
-  {
-    id: 'dw-upper',
-    x: 3.33,
-    y: 1.78,
-    z: 0.4,
-    r: 0.75,
-    priority: 0,
-    promptOpen: 'F · Open overhead',
-    promptClose: 'F · Close overhead',
-  },
-  {
-    id: 'cabR-upper',
-    x: 4.08,
-    y: 1.78,
-    z: 0.4,
-    r: 1.05,
-    priority: 0,
-    promptOpen: 'F · Open overhead',
-    promptClose: 'F · Close overhead',
-  },
-];
-
-const cabFrontZ = ROOM.depth - LOUNGE.cab.depth;
-
-export const LOUNGE_INTERACTS: InteractSpot<LoungeInteractId>[] = [
-  {
-    id: 'loungeDimmerA',
-    x: FIXTURES.loungeDimmerA.x,
-    y: FIXTURES.loungeDimmerA.y,
-    z: FIXTURES.loungeDimmerA.z,
-    r: 0.75,
-    priority: 2,
-    promptOpen: 'F · Lounge lights',
-    promptClose: 'F · Lounge lights off',
-  },
-  {
-    id: 'loungeDimmerB',
-    x: FIXTURES.loungeDimmerB.x,
-    y: FIXTURES.loungeDimmerB.y,
-    z: FIXTURES.loungeDimmerB.z,
-    r: 0.85,
-    priority: 2,
-    promptOpen: 'F · Lounge lights',
-    promptClose: 'F · Lounge lights off',
-  },
-  {
-    id: 'tv',
-    x: FIXTURES.tv.x,
-    y: FIXTURES.tv.y,
-    z: cabFrontZ - 0.08,
-    r: 1.15,
-    priority: 2,
-    promptOpen: 'F · TV on',
-    promptClose: 'F · TV off',
-  },
-  {
-    id: 'tvGpo',
-    x: FIXTURES.loungeGpo.x,
-    y: FIXTURES.loungeGpo.y,
-    z: FIXTURES.loungeGpo.z - 0.15,
-    r: 0.85,
-    priority: 2,
-    promptOpen: 'F · TV on',
-    promptClose: 'F · TV off',
-  },
-];
-
-export const ROOM_INTERACTS: InteractSpot<RoomInteractId>[] = [
-  ...KITCHEN_INTERACTS,
-  ...LOUNGE_INTERACTS,
-];
-
-/** 1 = looking straight at (ox, oz), -1 = looking directly away. */
-export function facingDot(px: number, pz: number, yaw: number, ox: number, oz: number): number {
-  const dx = ox - px;
-  const dz = oz - pz;
-  const len = Math.hypot(dx, dz);
-  if (len < 1e-4) return 1;
-  return (dx * Math.sin(yaw) + dz * Math.cos(yaw)) / len;
-}
-
-function pickNearest<T extends InteractSpot<string>>(
-  items: T[],
-  px: number,
-  pz: number,
-  except: string[],
-  preferHigh: boolean,
-  yaw?: number
-): T | null {
-  const inRange: T[] = [];
-  for (const item of items) {
-    if (except.includes(item.id)) continue;
-    if (dist2(px, pz, item.x, item.z) < item.r * item.r) inRange.push(item);
-  }
-  if (inRange.length === 0) return null;
-
-  let candidates = inRange;
-  if (yaw !== undefined && inRange.length > 1) {
-    const ahead = inRange.filter((item) => facingDot(px, pz, yaw, item.x, item.z) > 0.12);
-    if (ahead.length) candidates = ahead;
-  }
-
-  if (preferHigh) {
-    return candidates.reduce((a, b) => (b.y > a.y ? b : a));
-  }
-  if (yaw !== undefined && candidates.length > 1) {
-    return candidates.reduce((a, b) => {
-      const fa = facingDot(px, pz, yaw, a.x, a.z);
-      const fb = facingDot(px, pz, yaw, b.x, b.z);
-      if (Math.abs(fa - fb) > 0.22) return fa > fb ? a : b;
-      const da = dist2(px, pz, a.x, a.z);
-      const db = dist2(px, pz, b.x, b.z);
-      if (Math.abs(da - db) > 0.05) return da < db ? a : b;
-      return a.priority >= b.priority ? a : b;
-    });
-  }
-  return candidates.reduce((a, b) => {
-    const dax = Math.abs(px - a.x);
-    const dbx = Math.abs(px - b.x);
-    if (Math.abs(dax - dbx) > 0.12) return dax < dbx ? a : b;
-    const da = dist2(px, pz, a.x, a.z);
-    const db = dist2(px, pz, b.x, b.z);
-    if (Math.abs(da - db) > 0.05) return da < db ? a : b;
-    return a.priority >= b.priority ? a : b;
-  });
-}
-
-export function nearestKitchenInteract(
-  px: number,
-  pz: number,
-  except: KitchenInteractId[] = [],
-  preferHigh = false,
-  yaw?: number
-): (typeof KITCHEN_INTERACTS)[number] | null {
-  return pickNearest(KITCHEN_INTERACTS, px, pz, except, preferHigh, yaw);
-}
-
-export function nearestRoomInteract(
-  px: number,
-  pz: number,
-  except: RoomInteractId[] = [],
-  preferHigh = false,
-  yaw?: number
-): InteractSpot<RoomInteractId> | null {
-  return pickNearest(ROOM_INTERACTS, px, pz, except, preferHigh, yaw);
-}
-
-/** Look-cone hint: visible beyond use radius, never fires interact. */
-export const INTERACT_HINT_RANGE = 2.4;
-export const INTERACT_HINT_FACING = 0.45;
-
-export function nearestRoomHint(
-  px: number,
-  pz: number,
-  yaw: number,
-  except: RoomInteractId[] = []
-): InteractSpot<RoomInteractId> | null {
-  const inCone: InteractSpot<RoomInteractId>[] = [];
-  const max2 = INTERACT_HINT_RANGE * INTERACT_HINT_RANGE;
-  for (const item of ROOM_INTERACTS) {
-    if (except.includes(item.id)) continue;
-    const d2 = dist2(px, pz, item.x, item.z);
-    if (d2 >= max2 || d2 < item.r * item.r) continue;
-    if (facingDot(px, pz, yaw, item.x, item.z) <= INTERACT_HINT_FACING) continue;
-    inCone.push(item);
-  }
-  if (inCone.length === 0) return null;
-  return inCone.reduce((a, b) => {
-    const da = dist2(px, pz, a.x, a.z);
-    const db = dist2(px, pz, b.x, b.z);
-    if (Math.abs(da - db) > 0.05) return da < db ? a : b;
-    const fa = facingDot(px, pz, yaw, a.x, a.z);
-    const fb = facingDot(px, pz, yaw, b.x, b.z);
-    return fa >= fb ? a : b;
-  });
-}
-
-export function boardLookHint(px: number, pz: number, yaw: number): boolean {
-  const ox = BOARD_STAND_X;
-  const oz = BOARD_MOUNT.z;
-  const d = Math.hypot(px - ox, pz - oz);
-  if (d >= INTERACT_HINT_RANGE || nearBoard(px, pz)) return false;
-  return facingDot(px, pz, yaw, ox, oz) > INTERACT_HINT_FACING;
-}
-
 export const PLAYER_SPAWN = {
   x: 5.8,
   y: 0,
@@ -605,12 +251,6 @@ export function fridgeWallStudXs(): number[] {
   return xs;
 }
 
-export function circuitIndex(id: string): number {
-  const found = CIRCUITS.find((c) => c.id === id);
-  if (!found) throw new Error(`Unknown circuit ${id}`);
-  return found.index;
-}
-
 /** Board local → world, including wall-mount Ry(90). */
 export function boardLocalToWorld(local: Vec3): Vec3 {
   const s = BOARD_MOUNT.scale;
@@ -618,10 +258,6 @@ export function boardLocalToWorld(local: Vec3): Vec3 {
   const ly = local[1] * s;
   const lz = local[2] * s;
   return [BOARD_MOUNT.x + lz, BOARD_MOUNT.y + ly, BOARD_MOUNT.z - lx];
-}
-
-export function worldGland(circuitId: string): Vec3 {
-  return boardLocalToWorld(circuitExitGland(circuitIndex(circuitId)));
 }
 
 export function dist2(ax: number, az: number, bx: number, bz: number): number {
@@ -680,7 +316,9 @@ export function resolveSolidPosition(x: number, z: number, pad: number): { x: nu
   }
 
   const cabZ0 = ROOM.depth - LOUNGE.cab.depth;
-  ({ x: nx, z: nz } = pushAabb(nx, nz, 6.15, 7.55, 1.55, 3.65, pad));
+  for (const { x, z, w, d } of [ISLAND, DINING, GUM]) {
+    ({ x: nx, z: nz } = pushAabb(nx, nz, x - w / 2, x + w / 2, z - d / 2, z + d / 2, pad));
+  }
   ({ x: nx, z: nz } = pushAabb(
     nx,
     nz,

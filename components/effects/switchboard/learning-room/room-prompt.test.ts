@@ -1,97 +1,60 @@
 import { describe, expect, it } from 'vitest';
-import { KITCHEN_INTERACTS } from './room-layout';
 import { INITIAL_ROOM_PLAY } from './room-play';
-import { formatInteractVerb, loungeDimmerPrompt, roomActionPrompt } from './room-prompt';
-
-const fridge = KITCHEN_INTERACTS.find((h) => h.id === 'fridge')!;
-const toaster = KITCHEN_INTERACTS.find((h) => h.id === 'toaster')!;
+import { roomActionPrompt } from './room-prompt';
 
 const live = {
   powerLive: true,
   hobLive: true,
   loungePowerLive: true,
   loungeLightLive: true,
-  coverOpen: false,
-  coarse: false,
+  kitchenLightLive: true,
 };
 
-describe('formatInteractVerb', () => {
-  it('rewrites F prompts on coarse pointers', () => {
-    expect(formatInteractVerb('F · Open fridge', true)).toBe('Tap · Open fridge');
-    expect(formatInteractVerb('F · Open fridge', false)).toBe('F · Open fridge');
-  });
-});
-
-describe('loungeDimmerPrompt', () => {
-  it('explains a dead lounge lighting circuit', () => {
-    expect(loungeDimmerPrompt(false, 1)).toBe('Lounge lighting is off');
-  });
-
-  it('steps through dimmer copy', () => {
-    expect(loungeDimmerPrompt(true, 0)).toBe('F · Dim lounge lights');
-    expect(loungeDimmerPrompt(true, 0.35)).toBe('F · Dim 70%');
-    expect(loungeDimmerPrompt(true, 0.7)).toBe('F · Dim 100%');
-    expect(loungeDimmerPrompt(true, 1)).toBe('F · Lounge lights off');
-  });
-});
-
-describe('roomActionPrompt', () => {
-  it('asks the player to walk when nothing is in range', () => {
-    expect(roomActionPrompt(null, false, INITIAL_ROOM_PLAY, live)).toEqual({
-      text: 'Walk to the board, kitchen, or lounge',
-      tone: 'default',
+describe('contextual fitting prompts', () => {
+  it('matches the state of the visible door', () => {
+    expect(roomActionPrompt('fridge', INITIAL_ROOM_PLAY, live)).toEqual({
+      text: 'Open fridge',
+      actionable: true,
     });
+    expect(roomActionPrompt('fridge', { ...INITIAL_ROOM_PLAY, fridgeOpen: true }, live).text).toBe(
+      'Close fridge'
+    );
   });
 
-  it('uses fridge open/close copy', () => {
-    expect(roomActionPrompt(fridge, false, INITIAL_ROOM_PLAY, live)).toEqual({
-      text: 'F · Open fridge',
-      tone: 'default',
-    });
-    expect(
-      roomActionPrompt(fridge, false, { ...INITIAL_ROOM_PLAY, fridgeOpen: true }, live)
-    ).toEqual({
-      text: 'F · Close fridge',
-      tone: 'default',
-    });
-  });
-
-  it('blocks the toaster when kitchen power is off', () => {
-    expect(
-      roomActionPrompt(toaster, false, INITIAL_ROOM_PLAY, { ...live, powerLive: false })
-    ).toEqual({
+  it('explains a dead circuit without suggesting the appliance will start', () => {
+    expect(roomActionPrompt('toaster', INITIAL_ROOM_PLAY, { ...live, powerLive: false })).toEqual({
       text: 'Kitchen power is off',
-      tone: 'caution',
+      actionable: false,
     });
   });
 
-  it('uses tap wording on mobile at the board', () => {
-    expect(roomActionPrompt(null, true, INITIAL_ROOM_PLAY, { ...live, coarse: true })).toEqual({
-      text: 'Tap to open the switchboard',
-      tone: 'caution',
+  it('keeps a mechanical wall switch actionable when its supply is off', () => {
+    expect(roomActionPrompt('switch', INITIAL_ROOM_PLAY, { ...live, kitchenLightLive: false })).toEqual({
+      text: 'Lights off · circuit off',
+      actionable: true,
+    });
+    expect(roomActionPrompt('loungeDimmerA', INITIAL_ROOM_PLAY, { ...live, loungeLightLive: false })).toEqual({
+      text: 'Lounge lights on · circuit off',
+      actionable: true,
     });
   });
 
-  it('asks to close the cover when it is open at the board', () => {
-    expect(roomActionPrompt(null, true, INITIAL_ROOM_PLAY, { ...live, coverOpen: true })).toEqual({
-      text: 'Tap a breaker · F / Esc closes cover',
-      tone: 'caution',
-    });
+  it('distinguishes a socket rocker from its appliance', () => {
+    const play = { ...INITIAL_ROOM_PLAY, loungeSocketOn: false };
+    expect(roomActionPrompt('tvGpo', play, live).text).toBe('Power point on');
+    expect(roomActionPrompt('tv', play, live).text).toBe('Switch the lounge power point on');
   });
 
-  it('uses step-back wording on mobile while the cover is open', () => {
-    expect(
-      roomActionPrompt(null, false, INITIAL_ROOM_PLAY, { ...live, coverOpen: true, coarse: true })
-    ).toEqual({
-      text: 'Tap a breaker · move to step back',
-      tone: 'caution',
-    });
-  });
-
-  it('hints to walk closer without using F when the fitting is only in the look cone', () => {
-    expect(roomActionPrompt(null, false, INITIAL_ROOM_PLAY, live, fridge)).toEqual({
-      text: 'Walk closer · Open fridge',
-      tone: 'default',
-    });
+  it('explains each lounge dimmer step', () => {
+    for (const [level, label] of [
+      [0, 'Lounge lights on'],
+      [0.35, 'Set lounge lights to 70%'],
+      [0.7, 'Set lounge lights to 100%'],
+      [1, 'Lounge lights off'],
+    ] as const) {
+      expect(
+        roomActionPrompt('loungeDimmerA', { ...INITIAL_ROOM_PLAY, loungeDimmer: level }, live).text
+      ).toBe(label);
+    }
   });
 });

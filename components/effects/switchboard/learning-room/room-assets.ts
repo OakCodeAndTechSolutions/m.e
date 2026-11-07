@@ -16,38 +16,32 @@ export const ROOM_GLB = {
   switch: '/models/learning-room/optimized/switch.glb?v=12',
   isolator: '/models/learning-room/optimized/isolator.glb?v=12',
   dimmer: '/models/learning-room/optimized/dimmer.glb?v=1',
-  /** Sketchfab CC-BY lounge furniture — same Objaverse source as the kitchen. */
-  sofa: '/models/learning-room/optimized/real/sofa-modern.glb?v=1',
-  coffeeTable:
-    '/models/learning-room/polyhaven/modern_coffee_table_01/modern_coffee_table_01_1k.gltf?v=1',
   television: '/models/learning-room/optimized/real/tv-samsung.glb?v=1',
-  tvCabinet: '/models/learning-room/optimized/real/tv-byas.glb?v=1',
 } as const;
 
-/** Models in the idle camera, preloaded with the page. */
-const IDLE_ROOM_MODELS = [
-  ROOM_GLB.fridge,
-  ROOM_GLB.oven,
-  ROOM_GLB.cooktop,
-  ROOM_GLB.dishwasher,
-  ROOM_GLB.hood,
-  ROOM_GLB.toaster,
-  ROOM_GLB.sink,
-  ROOM_GLB.tap,
-  ROOM_GLB.pot,
-  ROOM_GLB.roast,
-  ROOM_GLB.gpoDouble,
-  ROOM_GLB.switch,
-  ROOM_GLB.isolator,
-  ROOM_GLB.dimmer,
-  ROOM_GLB.sofa,
-  ROOM_GLB.coffeeTable,
-  ROOM_GLB.television,
-  ROOM_GLB.tvCabinet,
-] as const;
+const house = (name: string, version = 1) =>
+  '/models/learning-room/optimized/house/' + name + '.glb?v=' + version;
+
+export const HOUSE_GLB = {
+  'hardwood-floor': house('hardwood-floor'),
+  'kitchen-island': house('kitchen-island', 2),
+  'dining-table': house('dining-table', 2),
+  'dining-chair': house('dining-chair', 2),
+  sofa: house('sofa', 2),
+  'coffee-table': house('coffee-table', 2),
+  'media-console': house('media-console', 2),
+  pendant: house('pendant'),
+  'potted-gum': house('potted-gum', 2),
+  'board-door': house('board-door'),
+  'rcbo-body': house('rcbo-body', 2),
+  'isolator-body': house('isolator-body', 2),
+  'rcbo-toggle': house('rcbo-toggle', 2),
+  'isolator-toggle': house('isolator-toggle', 2),
+  'rcbo-test': house('rcbo-test', 2),
+} as const;
 
 export function preloadRoomModelPaths(): string[] {
-  return [...IDLE_ROOM_MODELS];
+  return [...Object.values(ROOM_GLB), ...Object.values(HOUSE_GLB)];
 }
 
 /** Poly Haven and ambientCG CC0 materials. */
@@ -89,6 +83,15 @@ export const POLYHAVEN = {
     diff: '/models/learning-room/optimized/polyhaven/textures/pine/coated_pine_diff_1k.jpg',
     nor: '/models/learning-room/optimized/polyhaven/textures/pine/coated_pine_nor_gl_1k.jpg',
     arm: '/models/learning-room/optimized/polyhaven/textures/pine/coated_pine_arm_1k.jpg',
+  },
+  /**
+   * Fresh MGP10 radiata for the open frame: Poly Haven Plywood face veneer, its diffuse
+   * re-toned pale and yellow (scripts/optimize-room-assets.mjs), normal and ARM as-is.
+   */
+  mgpPine: {
+    diff: '/models/learning-room/optimized/polyhaven/textures/plywood/mgp-pine_diff_1k.jpg',
+    nor: '/models/learning-room/optimized/polyhaven/textures/plywood/plywood_nor_gl_1k.jpg',
+    arm: '/models/learning-room/optimized/polyhaven/textures/plywood/plywood_arm_1k.jpg',
   },
   /** ambientCG Wood048 — pale construction pine, not furniture stain. */
   treatedPine: {

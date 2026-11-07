@@ -118,8 +118,8 @@ function FramedPrint({ print }: { print: Print }) {
     { at: [(outerW - FRAME) / 2, 0], size: [FRAME, outerH - FRAME * 2] },
   ];
   return (
-    // Local +Z faces into the room from the board wall.
-    <group position={print.position} rotation={[0, Math.PI / 2, 0]}>
+    // Local +Z faces into the room from the lounge wall.
+    <group position={print.position} rotation={[0, Math.PI, 0]}>
       {rails.map(({ at, size }) => (
         <mesh key={`${at[0]}:${at[1]}`} position={[at[0], at[1], FRAME_DEPTH / 2]} castShadow>
           <boxGeometry args={[size[0], size[1], FRAME_DEPTH]} />
@@ -138,7 +138,7 @@ function FramedPrint({ print }: { print: Print }) {
   );
 }
 
-/** Two framed prints on the board wall, lit by the up/down lights above them. */
+/** Two framed prints on the lounge wall, either side of the TV run. */
 export function AboutPortraits() {
   return (
     <group>

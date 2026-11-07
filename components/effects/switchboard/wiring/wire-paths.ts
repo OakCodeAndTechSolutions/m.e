@@ -1,239 +1,198 @@
 import {
-  BOARD,
+  BAR_PORTS,
   CIRCUITS,
   ROOM_CIRCUIT_IDS,
-  earthBarScrew,
-  mainSwitchX,
+  earthBarTerminal,
+  mainTerminal,
   moduleBottomNeutralTerminal,
   moduleBottomTerminal,
   moduleNeutralTerminal,
   moduleTopTerminal,
-  neutralBarScrew,
+  neutralBarTerminal,
   rcboX,
   type Vec3,
 } from '../circuit-data';
+import { BOARD_METRES_PER_UNIT, DIN, MM } from '../din';
+import { BOARD_CABLE_ENTRIES, CABLE_SIZE, boardCableEntry, type CableKind } from './board-cables';
 
-/** Wiring plane behind the RCBO bodies — never clip through modules. */
-function behindModules(): number {
-  return -0.25;
-}
+// Between the rear tray and the DIN rail, clear of the rail brackets at each end.
+const DRESS_PLANE = -0.252;
 
-/** Clearance under module bottoms before any lateral sweep. */
-function belowModules(): number {
-  return BOARD.railY - BOARD.moduleHeight * 0.58 - 0.12;
-}
+export const COMB_FEED = {
+  active: [rcboX(0) - 0.09, DIN.height / 2 + 0.074, moduleTopTerminal(rcboX(0))[2] + 0.04] as Vec3,
+  neutral: [
+    rcboX(0) + 0.03,
+    DIN.height / 2 + 0.073,
+    moduleNeutralTerminal(rcboX(0))[2] - 0.047,
+  ] as Vec3,
+};
+export const ENCLOSURE_BOND: Vec3 = [1.07, 0.82, -0.275];
 
-/** Per-circuit floor gland — one neat row on the gland plate. */
-export function circuitExitGland(i: number): Vec3 {
-  return [rcboX(i), -BOARD.height / 2 + 0.06, BOARD.glandPlateZ];
-}
-
-function sway(i: number, amp = 0.05): number {
-  return Math.sin(i * 1.7 + 0.4) * amp;
-}
-
-export type WirePaths = {
-  tpsSheath: Vec3[];
-  /** Where the mains sheath ends and the cores peel. */
-  tpsStrip: Vec3;
-  tpsActiveCore: Vec3[];
-  neutralIn: Vec3[];
-  earthIn: Vec3[];
-  enclosureBond: Vec3[];
-  mainToComb: Vec3[];
-  barToNeutComb: Vec3[];
-  outgoingActive: Vec3[][];
-  outgoingNeutral: Vec3[][];
-  outgoingEarth: Vec3[][];
-  outgoingTps: Vec3[][];
+type Core = {
+  kind: 'active' | 'neutral' | 'earth';
+  diameter: number;
+  points: Vec3[];
 };
 
-/** Pure layout: all loom routes for the board. */
-export function buildWirePaths(): WirePaths {
-  const mainX = mainSwitchX();
-  const mainTop = moduleTopTerminal(mainX);
-  const mainBot = moduleBottomTerminal(mainX);
-  const firstTop = moduleTopTerminal(rcboX(0));
-  const firstN = moduleNeutralTerminal(rcboX(0));
-  const back = behindModules();
-  const under = belowModules();
+type Loom = {
+  circuitId: string;
+  kind: CableKind;
+  jacket: Vec3[];
+  cores: Core[];
+};
 
-  const combFeed: Vec3 = [firstTop[0], firstTop[1] + 0.075, firstTop[2]];
-  const neutCombFeed: Vec3 = [firstN[0], firstN[1] + 0.058, firstN[2]];
+function wire(kind: Core['kind'], diameterMm: number, points: Vec3[]): Core {
+  return { kind, diameter: diameterMm * MM, points };
+}
 
-  // --- Incoming mains: ONE TPS through the top-left gland, dressed down the back wall ---
-  const gland = BOARD.mainsKnockout;
-  const outside: Vec3 = [gland[0] - 0.1, gland[1] + 0.32, gland[2] - 0.12];
-  // Sheath stops just under the gland; cores peel and run flat on the back plane.
-  const strip: Vec3 = [gland[0] + 0.06, gland[1] - 0.26, back];
-
-  const tpsSheath: Vec3[] = [
-    outside,
-    [gland[0] - 0.03, gland[1] + 0.1, gland[2] - 0.02],
-    gland,
-    [gland[0] + 0.03, gland[1] - 0.14, back + 0.01],
-    strip,
+/** One flat sheath across the enclosure entry, then a short kick toward the back. */
+function jacket(circuitId: string, drop: number): Vec3[] {
+  const [x, y, z] = boardCableEntry(circuitId);
+  return [
+    [x, y - 0.001, z],
+    [x, y - 0.106, z],
+    [x, y - drop + 0.1, DRESS_PLANE],
+    [x, y - drop, DRESS_PLANE],
   ];
+}
 
-  const neutScrew0 = neutralBarScrew(0);
-  const earthScrew0 = earthBarScrew(0);
-  const runY = BOARD.barY + 0.17; // horizontal dressing line just above both bars
-  const leftWallX = mainX - 0.11; // clear of the neutral bar end cap
+function insideTerminal(at: Vec3, side: 1 | -1): Vec3 {
+  return [at[0], at[1] - side * 2.5 * MM, at[2]];
+}
 
-  // Active: down the left inner wall, then into the MAIN top terminal
-  const tpsActiveCore: Vec3[] = [
-    strip,
-    [leftWallX, strip[1] - 0.12, back],
-    [leftWallX, mainTop[1] + 0.3, back],
-    [mainTop[0] - 0.03, mainTop[1] + 0.14, mainTop[2] - 0.05],
-    [mainTop[0], mainTop[1] + 0.05, mainTop[2]],
-    mainTop,
+/** Cores emerge side by side across the long axis of the flat jacket. */
+function breakout(end: Vec3, kind: CableKind, lane: -1 | 0 | 1): Vec3 {
+  return [
+    end[0] + lane * (CABLE_SIZE[kind].w / BOARD_METRES_PER_UNIT) * 0.27,
+    end[1] + 0.018,
+    end[2],
   ];
+}
 
-  // Neutral: short drop straight onto the first neutral-bar screw
-  const neutralIn: Vec3[] = [
-    strip,
-    [strip[0] + 0.03, strip[1] - 0.1, back],
-    [neutScrew0[0], BOARD.barY + 0.1, back],
-    [neutScrew0[0], BOARD.barY + 0.03, BOARD.barZ + 0.02],
-    neutScrew0,
-  ];
+function submain(): Loom {
+  const sleeve = jacket('submain', 0.34);
+  const cut = sleeve.at(-1)!;
+  const line = mainTerminal(1);
+  const neutral = neutralBarTerminal(0);
+  const earth = earthBarTerminal(0);
+  return {
+    circuitId: 'submain',
+    kind: 'submain',
+    jacket: sleeve,
+    cores: [
+      wire('active', 6.1, [
+        breakout(cut, 'submain', -1),
+        [-1.105, 1.1, DRESS_PLANE],
+        [-1.105, 0.79, 0.06],
+        [line[0], 0.62, line[2]],
+        insideTerminal(line, 1),
+      ]),
+      wire('neutral', 6.1, [
+        breakout(cut, 'submain', 0),
+        [neutral[0], 1.22, -0.04],
+        [neutral[0], neutral[1], neutral[2] + 0.085],
+        neutral,
+      ]),
+      wire('earth', 4.5, [
+        breakout(cut, 'submain', 1),
+        [cut[0] + 0.07, 1.24, -0.11],
+        [earth[0] - 0.1, 1.205, 0.012],
+        [earth[0], 1.09, 0.01],
+        earth,
+      ]),
+    ],
+  };
+}
 
-  // Earth: along the dressing line across the back, then down onto the earth bar
-  const earthIn: Vec3[] = [
-    strip,
-    [strip[0] + 0.08, runY, back],
-    [earthScrew0[0] - 0.12, runY, back],
-    [earthScrew0[0], BOARD.barY + 0.1, back],
-    [earthScrew0[0], BOARD.barY + 0.03, BOARD.barZ + 0.02],
-    earthScrew0,
-  ];
+const CORE_DIAMETER = {
+  light: [2.65, 2.15],
+  power: [3.3, 2.65],
+  cooking: [4.45, 3.1],
+} as const;
 
-  // Enclosure bond: earth bar → right inner wall stud
-  const bondX = BOARD.width / 2 - 0.16;
-  const enclosureBond: Vec3[] = [
-    earthBarScrew(1),
-    [earthBarScrew(1)[0], BOARD.barY + 0.1, back],
-    [bondX - 0.05, BOARD.barY + 0.12, back],
-    [bondX, BOARD.barY - 0.02, back],
-    [bondX, BOARD.barY - 0.25, -BOARD.depth / 2 + 0.04],
-  ];
+function outgoing(): Loom[] {
+  return CIRCUITS.filter((c) => ROOM_CIRCUIT_IDS.has(c.id)).map((c, i) => {
+    const entry = BOARD_CABLE_ENTRIES.find((e) => e.circuitId === c.id);
+    if (!entry || entry.kind === 'submain') throw new Error('Missing outgoing jacket for ' + c.id);
+    const { kind } = entry;
+    const sleeve = jacket(c.id, 0.295 + (i % 2) * 0.018);
+    const cut = sleeve.at(-1)!;
+    const x = rcboX(c.index);
+    const [diameter, earthDiameter] = CORE_DIAMETER[kind];
+    const earth = earthBarTerminal(i + 1);
 
-  // Main load → comb: drop below, behind, then up into feed — clear of RCBO bodies
-  const mainToComb: Vec3[] = [
-    mainBot,
-    [mainBot[0], mainBot[1] - 0.06, mainBot[2]],
-    [mainBot[0], under, back],
-    [mainX - 0.08, under, back],
-    [combFeed[0] - 0.06, under + 0.1, back],
-    [combFeed[0] - 0.04, combFeed[1] - 0.05, back + 0.08],
-    [combFeed[0] - 0.02, combFeed[1], combFeed[2]],
-    combFeed,
-  ];
-
-  const barToNeutComb: Vec3[] = [
-    neutralBarScrew(2),
-    [neutralBarScrew(2)[0], BOARD.barY - 0.12, back],
-    [neutCombFeed[0], neutCombFeed[1] + 0.2, back],
-    [neutCombFeed[0], neutCombFeed[1] + 0.06, neutCombFeed[2] - 0.04],
-    neutCombFeed,
-  ];
-
-  const outgoingActive: Vec3[][] = [];
-  const outgoingNeutral: Vec3[][] = [];
-  const outgoingEarth: Vec3[][] = [];
-  const outgoingTps: Vec3[][] = [];
-
-  // Earth loom: bar → horizontal bundle → right-hand trunk → base bundle → each gland.
-  const usedCircuits = CIRCUITS.filter((c) => ROOM_CIRCUIT_IDS.has(c.id));
-  const trunkX = rcboX(CIRCUITS.length - 1) + 0.16;
-  const loomTopY = BOARD.barY - 0.16;
-  const loomBaseY = under - 0.02;
-
-  for (const c of CIRCUITS) {
-    const i = c.index;
-    const x = rcboX(i);
-    const bot = moduleBottomTerminal(x);
-    const nBot = moduleBottomNeutralTerminal(x);
-    const exit = circuitExitGland(i);
-    const gz = BOARD.glandPlateZ;
-    const s = sway(i, 0.012);
-
-    // Join directly above THIS pole's gland — same X, same Z
-    const join: Vec3 = [x, under - 0.08, gz];
-    const mouthA: Vec3 = [join[0] + 0.008, join[1] + 0.04, join[2] + 0.006];
-    const mouthN: Vec3 = [join[0] - 0.008, join[1] + 0.038, join[2] - 0.005];
-    const mouthE: Vec3 = [join[0] + 0.002, join[1] + 0.036, join[2] + 0.008];
-
-    const used = ROOM_CIRCUIT_IDS.has(c.id);
-
-    if (used) {
-      outgoingActive.push([
-        bot,
-        [bot[0], bot[1] - 0.05, bot[2]],
-        [bot[0] + s, under + 0.03, Math.min(bot[2] - 0.04, gz + 0.05)],
-        [x, under, gz],
-        [x, join[1] + 0.05, gz],
-        mouthA,
-        join,
+    // Parallel drops behind the rail. The exposed ends sweep forward as short pairs.
+    const tail = (core: 'active' | 'neutral', at: Vec3, order: -1 | 1): Core => {
+      const start = breakout(cut, kind, order);
+      const [tx, ty, tz] = at;
+      const low = ty - 0.195 - (i % 2) * 0.023;
+      return wire(core, diameter, [
+        start,
+        [start[0] + order * 0.01, cut[1] - 0.07, DRESS_PLANE],
+        [tx, 0.78, DRESS_PLANE],
+        [tx, low + 0.075, DRESS_PLANE],
+        [tx, low, -0.065],
+        [tx, low + 0.024, tz - 0.035],
+        [tx, ty - 0.063, tz],
+        insideTerminal(at, -1),
       ]);
+    };
 
-      outgoingNeutral.push([
-        nBot,
-        [nBot[0], nBot[1] - 0.05, nBot[2]],
-        [nBot[0] - s, under + 0.02, Math.min(nBot[2] - 0.04, gz + 0.05)],
-        [x - 0.005, under - 0.02, gz],
-        [x, join[1] + 0.045, gz],
-        mouthN,
-        join,
-      ]);
+    return {
+      circuitId: c.id,
+      kind,
+      jacket: sleeve,
+      cores: [
+        tail('active', moduleBottomTerminal(x), 1),
+        tail('neutral', moduleBottomNeutralTerminal(x), -1),
+        wire('earth', earthDiameter, [
+          breakout(cut, kind, 0),
+          [cut[0], cut[1] - 0.055, -0.085],
+          [earth[0], 1.17 + (i % 2) * 0.016, 0.01],
+          [earth[0], earth[1] + 0.025, earth[2] + 0.092],
+          earth,
+        ]),
+      ],
+    };
+  });
+}
 
-      const screw = earthBarScrew(i + 2);
-      const [sx, sy, sz] = screw;
-      // Stagger each tail a little so the bundle reads as several cores, not one tube
-      const k = usedCircuits.findIndex((u) => u.id === c.id);
-      const lane = (k - (usedCircuits.length - 1) / 2) * 0.014;
-      outgoingEarth.push([
-        screw,
-        [sx, sy - 0.06, sz + 0.06],
-        [sx, loomTopY - lane, back],
-        [trunkX - 0.06, loomTopY - lane, back],
-        [trunkX + lane * 0.5, loomTopY - 0.1, back],
-        [trunkX + lane * 0.5, loomBaseY + 0.1, back],
-        [trunkX - 0.06, loomBaseY + lane, back],
-        [x + 0.05, loomBaseY + lane, back],
-        [x, loomBaseY - 0.01, back + 0.16],
-        [x, join[1] + 0.04, gz],
-        mouthE,
-        join,
-      ]);
-
-      outgoingTps.push([
-        [x, join[1] - 0.01, gz],
-        [x, exit[1] + 0.16, gz],
-        exit,
-        [x, exit[1] - 0.04, gz],
-      ]);
-    } else {
-      outgoingActive.push([]);
-      outgoingNeutral.push([]);
-      outgoingEarth.push([]);
-      outgoingTps.push([]);
-    }
-  }
+/** All jacket ends, terminal points and distinct conductor runs for the cutaway. */
+export function buildWirePaths() {
+  const source = submain();
+  const circuits = outgoing();
+  const mainOut = mainTerminal(-1);
+  const neutral = neutralBarTerminal(1);
+  const bond = earthBarTerminal(BAR_PORTS.earth - 1);
+  const activeFeed = COMB_FEED.active;
+  const neutralFeed = COMB_FEED.neutral;
 
   return {
-    tpsSheath,
-    tpsStrip: strip,
-    tpsActiveCore,
-    neutralIn,
-    earthIn,
-    enclosureBond,
-    mainToComb,
-    barToNeutComb,
-    outgoingActive,
-    outgoingNeutral,
-    outgoingEarth,
-    outgoingTps,
+    source,
+    circuits,
+    links: [
+      wire('active', 6.1, [
+        insideTerminal(mainOut, -1),
+        [mainOut[0], mainOut[1] - 0.125, mainOut[2]],
+        [-1.17, -0.62, 0.33],
+        [-1.17, 0.35, 0.33],
+        [-1.1, 0.57, 0.36],
+        [activeFeed[0], activeFeed[1] + 0.075, activeFeed[2] + 0.045],
+        activeFeed,
+      ]),
+      wire('neutral', 6.1, [
+        neutral,
+        [neutral[0], neutral[1], neutral[2] + 0.1],
+        [neutralFeed[0] + 0.14, 0.84, 0.17],
+        [neutralFeed[0], 0.66, neutralFeed[2] + 0.065],
+        neutralFeed,
+      ]),
+      wire('earth', 3.3, [
+        bond,
+        [bond[0], bond[1], bond[2] + 0.07],
+        [1.13, 0.95, -0.095],
+        ENCLOSURE_BOND,
+      ]),
+    ],
   };
 }

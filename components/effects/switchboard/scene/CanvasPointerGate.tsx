@@ -22,6 +22,7 @@ export function CanvasPointerGate({ controlsEnabled }: Props) {
     return () => {
       el.style.pointerEvents = 'none';
       el.style.touchAction = 'pan-y';
+      document.body.style.cursor = '';
     };
   }, [controlsEnabled]);
 

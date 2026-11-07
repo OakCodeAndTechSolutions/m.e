@@ -1,11 +1,10 @@
 'use client';
 
 import { BOARD, mainSwitchX, moduleBodyZ } from './circuit-data';
-import { DIN, DIN_Z, MM, NOSE_LAYOUT } from './din';
+import { DIN_Z, MM, NOSE_LAYOUT } from './din';
 import { TOGGLE_OFF, TOGGLE_ON, useDampRotation } from './hooks/useDampRotation';
-import { onInteractiveClick, onInteractiveEnter, onInteractiveLeave } from './interaction';
 import { ModuleToggle } from './parts/ModuleToggle';
-import { DEVICE_RED, useMainSwitchFaceTexture } from './textures';
+import { useMainSwitchFaceTexture } from './textures';
 
 type Props = {
   on: boolean;
@@ -25,26 +24,18 @@ export function MainSwitch({ on, onToggle, onHover, disabled = false }: Props) {
 
   return (
     <group name="main-switch" position={[mainSwitchX(), BOARD.railY, moduleBodyZ()]}>
-      <mesh
-        visible={false}
-        position={[0, 0, nose - 0.015]}
-        onClick={disabled ? undefined : (e) => onInteractiveClick(e, onToggle)}
-        onPointerOver={(e) => onInteractiveEnter(e, hover)}
-        onPointerOut={() => onInteractiveLeave(unhover)}
-      >
-        <boxGeometry args={[w * 0.96, DIN.noseHeight, 0.04]} />
-      </mesh>
-
-      <mesh position={[0, NOSE_LAYOUT.label.y, nose + 0.2 * MM]} raycast={() => null}>
+      <mesh position={[0, NOSE_LAYOUT.label.y, nose + 0.08 * MM]} raycast={() => null}>
         <planeGeometry args={[w * 0.86, NOSE_LAYOUT.label.height]} />
-        <meshStandardMaterial map={face} roughness={0.6} />
+        <meshStandardMaterial map={face} transparent depthWrite={false} roughness={0.48} />
       </mesh>
 
       <group name="interact:main-toggle" position={[0, NOSE_LAYOUT.toggle.y, nose]}>
         <ModuleToggle
           handleRef={handleRef}
           on={on}
-          accent={DEVICE_RED}
+          isolator
+          label="Main switch"
+          deviceId="main"
           onToggle={onToggle}
           disabled={disabled}
           onHover={hover}

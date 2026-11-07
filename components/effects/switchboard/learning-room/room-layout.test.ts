@@ -7,50 +7,9 @@ import {
   ROOM,
   atBoard,
   nearBoard,
-  nearestRoomHint,
-  nearestRoomInteract,
   resolveOpenDoors,
   resolvePlayerPosition,
 } from './room-layout';
-
-describe('nearestRoomInteract', () => {
-  it('returns nothing at spawn', () => {
-    expect(nearestRoomInteract(PLAYER_SPAWN.x, PLAYER_SPAWN.z)).toBeNull();
-  });
-
-  it('picks the dishwasher in front of the bay', () => {
-    const hit = nearestRoomInteract(FIXTURES.dishwasher.x, 0.7);
-    expect(hit?.id).toBe('dishwasher');
-  });
-
-  it('picks the fridge over the neighbouring cupboard when closer to the fridge', () => {
-    const hit = nearestRoomInteract(FIXTURES.fridge.x, 0.85);
-    expect(hit?.id).toBe('fridge');
-  });
-
-  it('prefers the higher fitting when inspecting', () => {
-    const hit = nearestRoomInteract(2.58, 0.5, [], true);
-    expect(hit?.id).toBe('cabL-upper');
-  });
-
-  it('prefers the fitting the player is facing when two are in range', () => {
-    const px = 4.2;
-    const pz = 0.85;
-    expect(nearestRoomInteract(px, pz, [], false, Math.PI / 2)?.id).toBe('fridge');
-    expect(nearestRoomInteract(px, pz, [], false, -Math.PI / 2)?.id).toBe('dishwasher');
-  });
-});
-
-describe('nearestRoomHint', () => {
-  it('does not treat a far facing fridge as usable', () => {
-    expect(nearestRoomInteract(FIXTURES.fridge.x, 2.0, [], false, Math.PI)).toBeNull();
-  });
-
-  it('hints at the fridge in a look cone beyond the use radius', () => {
-    const hint = nearestRoomHint(FIXTURES.fridge.x, 2.0, Math.PI);
-    expect(hint?.id).toBe('fridge');
-  });
-});
 
 describe('resolvePlayerPosition', () => {
   it('keeps the player inside the room', () => {
