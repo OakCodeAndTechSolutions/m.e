@@ -16,7 +16,8 @@ const TOP_LEFT =
 
 export function LearningHud({ visible }: { visible: boolean }) {
   const { traceCircuit, setTraceCircuit, traceDetail, setTraceDetail } = useGameInput();
-  const { coverOpen, requestCoverOpen, closeCover } = useSwitchboard();
+  const { coverOpen, escutcheonRemoved, toggleEscutcheon, requestCoverOpen, closeCover } =
+    useSwitchboard();
   const { pointerHint, actionPrompt, nearBoard } = useGameHud();
   const { coarse } = useCoarsePointer();
   const [panelOpen, setPanelOpen] = useState(false);
@@ -25,7 +26,8 @@ export function LearningHud({ visible }: { visible: boolean }) {
   const traceAvailable = nearBoard || coverOpen || !!trace;
   const showTrace = traceAvailable && panelOpen;
   const hint = pointerHint || actionPrompt;
-  const canOpenBoard = coarse && nearBoard && !coverOpen && actionPrompt === OPEN_SWITCHBOARD_PROMPT;
+  const canOpenBoard =
+    coarse && nearBoard && !coverOpen && actionPrompt === OPEN_SWITCHBOARD_PROMPT;
 
   if (!visible) return null;
 
@@ -92,7 +94,7 @@ export function LearningHud({ visible }: { visible: boolean }) {
               {trace.route}
             </p>
           )}
-          {trace && coverOpen && trace.id !== 'submain' && (
+          {trace && coverOpen && escutcheonRemoved && trace.id !== 'submain' && (
             <button
               type="button"
               onClick={toggleDetail}
@@ -103,17 +105,25 @@ export function LearningHud({ visible }: { visible: boolean }) {
           )}
         </section>
       )}
-      {coarse && coverOpen && (
-        <button
-          type="button"
+      {coverOpen && (
+        <div
           className={cn(
-            BUTTON,
-            'absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] touch-manipulation'
+            'absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] flex flex-col items-end gap-2'
           )}
-          onClick={closeCover}
         >
-          Close switchboard
-        </button>
+          <button
+            type="button"
+            className={cn(BUTTON, 'touch-manipulation')}
+            onClick={toggleEscutcheon}
+          >
+            {escutcheonRemoved ? 'Refit inner cover' : 'Remove inner cover'}
+          </button>
+          {coarse && (
+            <button type="button" className={cn(BUTTON, 'touch-manipulation')} onClick={closeCover}>
+              Close switchboard
+            </button>
+          )}
+        </div>
       )}
       {canOpenBoard && !showTrace ? (
         <button

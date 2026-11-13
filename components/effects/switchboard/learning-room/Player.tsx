@@ -2,7 +2,15 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
-import { Group, MathUtils, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from 'three';
+import {
+  Group,
+  MathUtils,
+  PerspectiveCamera,
+  Quaternion,
+  Raycaster,
+  Vector2,
+  Vector3,
+} from 'three';
 import { useCoarsePointer, useMediaQuery } from '@/lib/hooks';
 import { CIRCUITS } from '../circuit-data';
 import { BOARD_INSPECT, IDLE_CAMERA, PLAYER_SPAWN, nearBoard } from './room-layout';
@@ -18,7 +26,7 @@ import {
   stepPlayerPoseBudget,
   type PlayerPose,
 } from './player-motion';
-import { boardControlTarget, roomTargetAtView } from './room-target';
+import { boardControlTarget, roomTargetAtPointer, roomTargetAtView } from './room-target';
 import type { RoomPlayState } from './room-play';
 import { emptyKeys, usePlayerInput, type Zoom } from './use-player-input';
 
@@ -35,7 +43,8 @@ const BOARD_DEVICES = ['main', ...CIRCUITS.map((circuit) => circuit.id)];
 
 export function Player({ enabled, onExit, play }: Props) {
   const { gl, events, invalidate, scene, camera } = useThree();
-  const { coverOpen, coverPromptOpen, denyCoverOpen, closeCover, setHovered } = useSwitchboard();
+  const { coverOpen, escutcheonRemoved, coverPromptOpen, denyCoverOpen, closeCover, setHovered } =
+    useSwitchboard();
   const {
     traceCircuit,
     traceDetail,
@@ -69,6 +78,7 @@ export function Player({ enabled, onExit, play }: Props) {
   const boardNearRef = useRef(false);
   const aimRay = useRef(new Raycaster());
   const keyboardDevice = useRef<string | null>(null);
+  const boardPan = useRef({ x: 0, y: 0 });
   const shake = useRef(0);
   const hoverRefresh = useRef(0);
   const promptRefresh = useRef(0);
@@ -102,6 +112,7 @@ export function Player({ enabled, onExit, play }: Props) {
 
   useEffect(() => {
     cameraTransition.current = 0.8;
+    boardPan.current = { x: 0, y: 0 };
     if (!coverOpen) {
       keyboardDevice.current = null;
       setHovered(null);
@@ -120,7 +131,15 @@ export function Player({ enabled, onExit, play }: Props) {
       promptRef.current = null;
       boardNearRef.current = false;
     }
-  }, [enabled, closeCover, denyCoverOpen, setActionPrompt, setNearBoard, setPointerHintsEnabled, setPointerHint]);
+  }, [
+    enabled,
+    closeCover,
+    denyCoverOpen,
+    setActionPrompt,
+    setNearBoard,
+    setPointerHintsEnabled,
+    setPointerHint,
+  ]);
 
   useEffect(() => {
     const onShock = () => setStunned(1800);
@@ -149,6 +168,26 @@ export function Player({ enabled, onExit, play }: Props) {
       if (!target) return;
       markInteract();
       target.activate();
+    },
+    onTap: (x, y, pointerType) => {
+      if (isStunned()) return;
+      const rect = gl.domElement.getBoundingClientRect();
+      camera.updateMatrixWorld();
+      const margin = pointerType === 'touch' ? 8 : 0;
+      const target = roomTargetAtPointer(
+        scene,
+        camera,
+        aimRay.current,
+        new Vector2(((x - rect.left) / rect.width) * 2 - 1, 1 - ((y - rect.top) / rect.height) * 2),
+        new Vector2((margin / rect.width) * 2, (margin / rect.height) * 2)
+      );
+      if (!target) return;
+      markInteract();
+      target.activate();
+    },
+    onBoardLook: (dx, dy) => {
+      boardPan.current.x = MathUtils.clamp(boardPan.current.x - dx * 0.00065, -0.22, 0.22);
+      boardPan.current.y = MathUtils.clamp(boardPan.current.y - dy * 0.00065, -0.18, 0.18);
     },
     onBoardKey: (code) => {
       if (code === 'KeyT') {
@@ -267,8 +306,18 @@ export function Player({ enabled, onExit, play }: Props) {
     }
 
     const anchor = coverOpen
-      ? boardInspectCameraAnchor(aspect, traceCircuit !== '', traceDetail ? traceCircuit : '')
+      ? boardInspectCameraAnchor(
+          aspect,
+          escutcheonRemoved,
+          escutcheonRemoved && traceDetail ? traceCircuit : ''
+        )
       : playingCameraAnchor(pose.current, zoomT);
+    if (coverOpen) {
+      anchor.posZ += boardPan.current.x;
+      anchor.lookZ += boardPan.current.x;
+      anchor.posY += boardPan.current.y;
+      anchor.lookY += boardPan.current.y;
+    }
     dummy.position.set(anchor.posX, anchor.posY, anchor.posZ);
 
     if (!reducedMotion && shake.current > 0.01) {

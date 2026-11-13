@@ -156,7 +156,7 @@ export function RoomLighting({
 
       {/* Bounce: neutral from above, warm from the timber floor. */}
       <hemisphereLight
-        args={[preview ? '#f1e8dc' : '#b2c9ed', '#8c7258', preview ? 0.38 : lit ? 0.19 : 0.076]}
+        args={[preview ? '#f1e8dc' : '#b2c9ed', '#8c7258', preview ? 0.38 : lit ? 0.3 : 0.076]}
       />
 
       <primitive object={sunTarget} position={ROOM_CENTRE} />
@@ -192,7 +192,7 @@ export function RoomLighting({
         position={[ROOM.width - 3.2, 1.2, ROOM.depth / 2]}
         width={ROOM.depth - 0.4}
         height={2}
-        intensity={preview ? 1.6 : lit ? 0.16 : 0}
+        intensity={preview ? 1.6 : lit ? 0.27 : 0}
         color="#f4e6d2"
       />
 
@@ -202,7 +202,7 @@ export function RoomLighting({
         intensity={guideIntensity}
         angle={switchTarget ? 0.28 : 0.32}
       />
-      <RoomReflections intensity={preview ? 0.55 : lit ? 0.18 : 0.048} />
+      <RoomReflections intensity={preview ? 0.55 : lit ? 0.26 : 0.048} />
     </>
   );
 }

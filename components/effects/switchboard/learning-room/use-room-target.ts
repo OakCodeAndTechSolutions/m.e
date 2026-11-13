@@ -3,12 +3,7 @@
 import { useThree, type ThreeEvent } from '@react-three/fiber';
 import { useCallback, useLayoutEffect, useRef } from 'react';
 import type { Mesh } from 'three';
-import {
-  INTERACTION_REACH,
-  onInteractiveClick,
-  onInteractiveEnter,
-  onInteractiveLeave,
-} from '../interaction';
+import { INTERACTION_REACH, onInteractiveEnter, onInteractiveLeave } from '../interaction';
 import { useGameInput } from './GameInputContext';
 import { registerRoomTarget } from './room-target';
 
@@ -83,9 +78,6 @@ export function useRoomTarget({
             setPointerHint(null);
           }
         }
-      : undefined,
-    onClick: enabled
-      ? (event: ThreeEvent<MouseEvent>) => onInteractiveClick(event, activate)
       : undefined,
   };
 }

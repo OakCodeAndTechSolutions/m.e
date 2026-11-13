@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
-import { ExtrudeGeometry, Path, Shape } from 'three';
+import { useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { ExtrudeGeometry, Group, MathUtils, Path, Shape } from 'three';
 import {
   BOARD,
   CIRCUITS,
@@ -18,6 +19,7 @@ import { DIN, DIN_Z, MM } from './din';
 import { Enclosure } from './Enclosure';
 import { EnclosureCover } from './EnclosureCover';
 import { useGameInput } from './learning-room/GameInputContext';
+import { useRoomTarget } from './learning-room/use-room-target';
 import { MainSwitch } from './MainSwitch';
 import { useSwitchboardMaterials } from './materials';
 import { TripFlash } from './parts/TripFlash';
@@ -155,13 +157,28 @@ function CoverScrew({ x, y }: { x: number; y: number }) {
   );
 }
 
-function Escutcheon() {
+function Escutcheon({ removed, onToggle }: { removed: boolean; onToggle: () => void }) {
   const geometry = useEscutcheonGeometry();
+  const panel = useRef<Group>(null);
+  const removal = useRef(0);
+  const target = useRoomTarget({
+    activate: onToggle,
+    prompt: removed ? 'Refit inner cover' : 'Remove inner cover',
+  });
+  useFrame((_, delta) => {
+    if (!panel.current) return;
+    const group = panel.current;
+    removal.current = MathUtils.damp(removal.current, removed ? 1 : 0, 7, delta);
+    const sideways = Math.max(0, (removal.current - 0.35) / 0.65);
+    group.position.z = Math.min(1, removal.current / 0.35) * 0.55;
+    group.position.x = sideways * (BOARD.width + 0.15);
+    group.rotation.y = sideways * -0.2;
+  });
   const sx = ESC.width / 2 - 9 * MM;
   const sy = ESC.height / 2 - 9 * MM;
   return (
-    <group>
-      <mesh geometry={geometry} castShadow receiveShadow onClick={(e) => e.stopPropagation()}>
+    <group ref={panel}>
+      <mesh geometry={geometry} castShadow receiveShadow {...target}>
         <meshPhysicalMaterial
           color="#f2f1ec"
           roughness={0.48}
@@ -173,6 +190,9 @@ function Escutcheon() {
       {[-1, 1].flatMap((ix) =>
         [-1, 1].map((iy) => <CoverScrew key={`${ix}${iy}`} x={ix * sx} y={iy * sy} />)
       )}
+      <LabelStrip onEscutcheon />
+      <MainSwitchPlate />
+      <RcdNotice z={ESC_FACE + 0.5 * MM} />
     </group>
   );
 }
@@ -202,12 +222,14 @@ export function Switchboard() {
     flashCircuit,
     hovered,
     coverOpen,
+    escutcheonRemoved,
+    toggleEscutcheon,
     requestCoverOpen,
     closeCover,
   } = useSwitchboard();
 
   const boardUnlocked = coverOpen;
-  const cutaway = boardUnlocked && traceCircuit !== '';
+  const cutaway = boardUnlocked && escutcheonRemoved;
 
   return (
     <group>
@@ -220,9 +242,8 @@ export function Switchboard() {
             <CombBus materials={materials} />
             <Wiring materials={materials} traceCircuit={traceCircuit} />
           </>
-        ) : (
-          <Escutcheon />
-        )}
+        ) : null}
+        <Escutcheon removed={escutcheonRemoved} onToggle={toggleEscutcheon} />
 
         {flashCircuit && (
           <TripFlash x={rcboX(flashCircuit.index)} active={tripFlashId === flashCircuit.id} />
@@ -247,9 +268,7 @@ export function Switchboard() {
             disabled={!boardUnlocked}
           />
         ))}
-        <LabelStrip onEscutcheon={!cutaway} />
-        {!cutaway && <MainSwitchPlate />}
-        {!cutaway && <RcdNotice z={ESC_FACE + 0.5 * MM} />}
+        {cutaway && <LabelStrip onEscutcheon={false} />}
       </group>
 
       <EnclosureCover open={coverOpen} onRequestOpen={requestCoverOpen} onClose={closeCover} />

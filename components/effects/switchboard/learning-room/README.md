@@ -7,7 +7,7 @@ when you point at a reachable fitting.
 Desktop supports WASD, arrow keys, drag to look, click fittings, F to use nearby
 objects, Shift/wheel to zoom and Escape to step back. Touch supports a movement
 stick, dragging and direct taps. Click the switchboard door to open or close it;
-walking or dragging also leaves the close inspection view. Device toggles and
+walking leaves the inspection view, while dragging pans across the board. Device toggles and
 T (test) buttons have separate, non-overlapping targets. Drags, secondary-button
 zooms and clicks beyond 2.4 m do not operate electrical fittings.
 
@@ -22,8 +22,9 @@ lighting switch. The lounge dimmer controls lounge fixtures. The walkthrough
 takes place at dusk. If no room lighting is available, a locator illuminates the
 switchboard. If a lighting circuit is available and its switch is off, a soft
 pool of light marks the switch. Use **Trace wiring** near the board to highlight a circuit and
-identify its destination. Open the board with a trace selected to see the
-connections behind the escutcheon. Choose **Inspect this breaker** to read the
+identify its destination. With the door open, choose **Remove inner cover** or
+tap the escutcheon to expose all connections. **Refit inner cover** restores the
+panel. Choose **Inspect this breaker** after selecting a circuit to read the
 face markings and use its toggle and test button in close-up.
 
 The model represents an **indoor distribution board supplied from an upstream
@@ -99,7 +100,8 @@ after a sustained drop in frame rate. Both paths use Neutral tone mapping.
 The furniture, island, pendant shades, potted gum, switchboard door and breaker
 parts are original meshes built in Blender at room scale. Photo references are listed in
 `public/models/learning-room/CREDITS.md`. From the repository root, run Blender
-5.2 to rebuild the runtime models and an editable, packed scene.
+5.2 to rebuild the runtime models and an editable, packed scene. Run
+`node scripts/fetch-room-materials.mjs` first to prepare the CC0 wool and flooring maps.
 
 ```powershell
 & 'C:/Program Files/Blender Foundation/Blender 5.2/blender.exe' --background --factory-startup --python-exit-code 1 --python scripts/blender/build_learning_house.py

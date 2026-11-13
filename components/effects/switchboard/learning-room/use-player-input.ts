@@ -44,6 +44,8 @@ type Args = {
   onUse: () => void;
   onBoardKey: (code: string) => boolean;
   onPointerActivity: () => void;
+  onTap: (x: number, y: number, pointerType: string) => void;
+  onBoardLook: (dx: number, dy: number) => void;
   denyCoverOpen: () => void;
   closeCover: () => void;
 };
@@ -58,7 +60,7 @@ function applyKey(keys: Keys, zoom: Zoom, code: string, down: boolean) {
   if (code === 'ShiftLeft' || code === 'ShiftRight' || code === 'KeyZ') zoom.hold = down;
 }
 
-/** Keyboard, wheel zoom and look-drag. Object clicks are handled by the scene. */
+/** Keyboard, wheel zoom, look-drag and taps picked from the room's shared targets. */
 export function usePlayerInput({
   enabled,
   gl,
@@ -72,6 +74,8 @@ export function usePlayerInput({
   onUse,
   onBoardKey,
   onPointerActivity,
+  onTap,
+  onBoardLook,
   denyCoverOpen,
   closeCover,
 }: Args) {
@@ -83,9 +87,11 @@ export function usePlayerInput({
     onUse,
     onBoardKey,
     onPointerActivity,
+    onTap,
+    onBoardLook,
     denyCoverOpen,
     closeCover,
-    });
+  });
   useLayoutEffect(() => {
     latest.current = {
       coverOpen,
@@ -94,9 +100,11 @@ export function usePlayerInput({
       onUse,
       onBoardKey,
       onPointerActivity,
+      onTap,
+      onBoardLook,
       denyCoverOpen,
       closeCover,
-        };
+    };
   });
   useEffect(() => {
     if (!enabled) {
@@ -106,15 +114,8 @@ export function usePlayerInput({
     }
 
     const onDown = (e: KeyboardEvent) => {
-      const {
-        coverOpen,
-        coverPromptOpen,
-        onExit,
-        onUse,
-        onBoardKey,
-        denyCoverOpen,
-        closeCover,
-            } = latest.current;
+      const { coverOpen, coverPromptOpen, onExit, onUse, onBoardKey, denyCoverOpen, closeCover } =
+        latest.current;
       const target = e.target instanceof Element ? e.target : null;
       if (e.code !== 'Escape') {
         if (target?.closest('input, select, textarea, [contenteditable="true"]')) return;
@@ -210,15 +211,20 @@ export function usePlayerInput({
       if (!look.dragging) {
         look.dragging = true;
         setLookDragActive(true);
-        if (latest.current.coverOpen) latest.current.closeCover();
         try {
           canvas.setPointerCapture(e.pointerId);
         } catch {
           /* capture is optional — window listeners still track */
         }
       }
-      // Touch drags move the scene with the finger, like panning a panorama.
-      const sens = e.pointerType === 'touch' ? -0.004 : 0.0028;
+      if (latest.current.coverOpen) {
+        latest.current.onBoardLook(dx, dy);
+        look.x = e.clientX;
+        look.y = e.clientY;
+        return;
+      }
+      // Dragging right turns the view right; dragging down looks down.
+      const sens = e.pointerType === 'touch' ? 0.004 : 0.0028;
       pose.current.yaw -= dx * sens;
       pose.current.pitch = MathUtils.clamp(
         pose.current.pitch - dy * sens,
@@ -246,13 +252,17 @@ export function usePlayerInput({
       if (look.id !== e.pointerId) return;
       const dragged = look.dragging;
       releaseLook(e.pointerId);
+      if (e.type === 'pointercancel') {
+        setLookDragActive(false);
+        return;
+      }
       if (dragged) {
         e.stopImmediatePropagation();
         window.setTimeout(() => setLookDragActive(false), 0);
         return;
       }
-      // A missed tap must not operate an unrelated nearby fitting.
-      window.setTimeout(() => setLookDragActive(false), 0);
+      setLookDragActive(false);
+      latest.current.onTap(e.clientX, e.clientY, e.pointerType);
     }
     const onPointerDown = (e: PointerEvent) => {
       if (latest.current.coverPromptOpen || look.id !== -1) return;

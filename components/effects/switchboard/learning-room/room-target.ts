@@ -53,13 +53,34 @@ const aimPoints = [
 
 /** Exact center first, with a small amount of forgiveness for a narrow wall rocker. */
 export function roomTargetAtView(scene: Scene, camera: Camera, ray: Raycaster): Interaction | null {
+  return pickRoomTarget(scene, camera, ray, aimPoints);
+}
+
+/** Tap at the actual screen position, with a small finger-sized margin around narrow controls. */
+export function roomTargetAtPointer(
+  scene: Scene,
+  camera: Camera,
+  ray: Raycaster,
+  point: Vector2,
+  margin: Vector2
+): Interaction | null {
+  return pickRoomTarget(scene, camera, ray, [
+    point,
+    new Vector2(point.x - margin.x, point.y),
+    new Vector2(point.x + margin.x, point.y),
+    new Vector2(point.x, point.y - margin.y),
+    new Vector2(point.x, point.y + margin.y),
+  ]);
+}
+
+function pickRoomTarget(scene: Scene, camera: Camera, ray: Raycaster, points: Vector2[]) {
   const targets = targetsByScene.get(scene);
   if (!targets?.size) return null;
   const meshes = [...targets.keys()].filter(isAvailable);
   for (const mesh of meshes) mesh.updateWorldMatrix(true, false);
   ray.far = INTERACTION_REACH;
 
-  for (const aim of aimPoints) {
+  for (const aim of points) {
     ray.setFromCamera(aim, camera);
     const nearest = ray.intersectObjects(meshes, false)[0];
     if (nearest) return targets.get(nearest.object as Mesh)!();

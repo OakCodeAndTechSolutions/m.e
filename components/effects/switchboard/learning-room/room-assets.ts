@@ -23,11 +23,11 @@ const house = (name: string, version = 1) =>
   '/models/learning-room/optimized/house/' + name + '.glb?v=' + version;
 
 export const HOUSE_GLB = {
-  'hardwood-floor': house('hardwood-floor'),
+  'hardwood-floor': house('hardwood-floor', 2),
   'kitchen-island': house('kitchen-island', 2),
   'dining-table': house('dining-table', 2),
   'dining-chair': house('dining-chair', 2),
-  sofa: house('sofa', 2),
+  sofa: house('sofa', 3),
   'coffee-table': house('coffee-table', 2),
   'media-console': house('media-console', 2),
   pendant: house('pendant'),
