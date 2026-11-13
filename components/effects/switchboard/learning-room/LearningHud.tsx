@@ -8,6 +8,7 @@ import { OPEN_SWITCHBOARD_PROMPT } from '../interaction';
 import { useSwitchboard } from '../SwitchboardContext';
 import { CIRCUIT_TRACES } from './circuit-trace';
 import { useGameHud, useGameInput } from './GameInputContext';
+import { TouchButton } from './TouchButton';
 
 const BUTTON =
   'pointer-events-auto flex min-h-11 items-center gap-2 rounded-full border border-white/20 bg-black/75 px-3 text-xs font-medium text-white transition hover:bg-black/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white';
@@ -41,7 +42,7 @@ export function LearningHud({ visible }: { visible: boolean }) {
     <div className="pointer-events-none absolute inset-0 z-50 font-sans">
       {traceAvailable && (
         <div className={cn(TOP_LEFT, 'flex flex-wrap gap-2 pr-24')}>
-          <button
+          <TouchButton
             ref={traceButton}
             type="button"
             aria-expanded={showTrace}
@@ -51,9 +52,9 @@ export function LearningHud({ visible }: { visible: boolean }) {
           >
             <Cable size={16} className={trace ? 'text-amber-300' : undefined} aria-hidden />
             Trace wiring
-          </button>
+          </TouchButton>
           {trace && coverOpen && traceDetail && !showTrace && (
-            <button
+            <TouchButton
               type="button"
               onClick={toggleDetail}
               className={BUTTON}
@@ -61,7 +62,7 @@ export function LearningHud({ visible }: { visible: boolean }) {
             >
               <ZoomOut size={16} aria-hidden />
               {trace.name}
-            </button>
+            </TouchButton>
           )}
         </div>
       )}
@@ -95,13 +96,13 @@ export function LearningHud({ visible }: { visible: boolean }) {
             </p>
           )}
           {trace && coverOpen && escutcheonRemoved && trace.id !== 'submain' && (
-            <button
+            <TouchButton
               type="button"
               onClick={toggleDetail}
               className="mt-2 min-h-11 w-full rounded-lg border border-amber-300/45 bg-amber-300/10 px-2 text-xs font-medium text-amber-100 hover:bg-amber-300/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
             >
               {traceDetail ? 'Show whole switchboard' : 'Inspect this breaker'}
-            </button>
+            </TouchButton>
           )}
         </section>
       )}
@@ -111,22 +112,26 @@ export function LearningHud({ visible }: { visible: boolean }) {
             'absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] flex flex-col items-end gap-2'
           )}
         >
-          <button
+          <TouchButton
             type="button"
             className={cn(BUTTON, 'touch-manipulation')}
             onClick={toggleEscutcheon}
           >
             {escutcheonRemoved ? 'Refit inner cover' : 'Remove inner cover'}
-          </button>
+          </TouchButton>
           {coarse && (
-            <button type="button" className={cn(BUTTON, 'touch-manipulation')} onClick={closeCover}>
+            <TouchButton
+              type="button"
+              className={cn(BUTTON, 'touch-manipulation')}
+              onClick={closeCover}
+            >
               Close switchboard
-            </button>
+            </TouchButton>
           )}
         </div>
       )}
       {canOpenBoard && !showTrace ? (
-        <button
+        <TouchButton
           type="button"
           className={cn(
             BUTTON,
@@ -135,7 +140,7 @@ export function LearningHud({ visible }: { visible: boolean }) {
           onClick={requestCoverOpen}
         >
           {OPEN_SWITCHBOARD_PROMPT}
-        </button>
+        </TouchButton>
       ) : hint && !showTrace ? (
         <p
           role="status"
