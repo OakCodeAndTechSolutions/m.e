@@ -217,8 +217,8 @@ export function usePlayerInput({
           /* capture is optional — window listeners still track */
         }
       }
-      // Touch drags move the scene with the finger, like panning a panorama.
-      const sens = e.pointerType === 'touch' ? -0.004 : 0.0028;
+      // Dragging right turns the view right; dragging down looks down.
+      const sens = e.pointerType === 'touch' ? 0.004 : 0.0028;
       pose.current.yaw -= dx * sens;
       pose.current.pitch = MathUtils.clamp(
         pose.current.pitch - dy * sens,
