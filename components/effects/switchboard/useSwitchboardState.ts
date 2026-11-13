@@ -17,6 +17,7 @@ export function useSwitchboardState() {
   const [tripFlashId, setTripFlashId] = useState<string | null>(null);
   const [tripReason, setTripReason] = useState<TripReason>(null);
   const [coverOpen, setCoverOpen] = useState(false);
+  const [escutcheonRemoved, setEscutcheonRemoved] = useState(false);
   const [coverPromptOpen, setCoverPromptOpen] = useState(false);
   const [shockActive, setShockActive] = useState(false);
   const [shockCircuitId, setShockCircuitId] = useState<string | null>(null);
@@ -56,7 +57,12 @@ export function useSwitchboardState() {
 
   const closeCover = useCallback(() => {
     setCoverOpen(false);
+    setEscutcheonRemoved(false);
   }, []);
+
+  const toggleEscutcheon = useCallback(() => {
+    if (coverOpen) setEscutcheonRemoved((removed) => !removed);
+  }, [coverOpen]);
 
   const shockOnWire = useCallback(
     (circuitId: string) => {
@@ -119,6 +125,8 @@ export function useSwitchboardState() {
     tripFlashId,
     tripReason,
     coverOpen,
+    escutcheonRemoved,
+    toggleEscutcheon,
     coverPromptOpen,
     shockActive,
     shockCircuitId,

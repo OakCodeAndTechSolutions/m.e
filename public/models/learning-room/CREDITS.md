@@ -29,11 +29,15 @@ The wall lights and framed prints use procedural geometry.
 
 ## Blender house assets
 
-The island, dining table and chair, sofa, coffee table, media console, pendant,
+The island, dining table and chair, coffee table, media console, pendant,
 potted gum, switchboard door, RCBO and isolator moulds, moving grips, and test
 plunger under `optimized/house/` are original Blender meshes. The modelled
 proportions, materials and details were informed by these Australian photographs
 and product images.
+
+The sofa uses the attributed Modern Couch mesh by Smitty__Werben listed above,
+reupholstered and exported through Blender with CC0 photographic wool maps.
+The oak floor is a Blender surface using the photographed Wood Floor maps.
 
 - Oak island, light joinery and brass hardware from [Kaboodle's Brisbane farmhouse kitchen](https://kaboodle.com.au/inspiration-gallery/front-porch-properties-farmhouse-kitchen).
 - Upholstery, soft silhouettes and timber furniture from [Jardan's Australian interiors](https://www.jardan.com.au/pages/furniture).
@@ -45,14 +49,15 @@ and product images.
 - Insulated comb, end caps and internal conductor dressing from [Clipsal's open MAX9 switchboard photos](https://www.clipsal.com/max9).
 - Exposed framing and cable dressing from [Sydney residential electrical project photos](https://localelectricalsolutions.com.au/projects).
 
-The project photographs informed the models and finishes. The exports use original
-basket-weave colour maps and the CC0 oak veneer, knitted fleece normal map and
-Marble 015 textures credited below.
+The project photographs informed the models and finishes. The scatter cushions use
+original basket-weave colour maps. Other surfaces use the CC0 textures below.
 
 ## Poly Haven and ambientCG (CC0)
 
 | File | Asset | License |
 |---|---|---|
+| `polyhaven/textures/herringbone/` | [Poly Wool Herringbone](https://polyhaven.com/a/poly_wool_herringbone) | CC0 |
+| `polyhaven/textures/oak-floor/` | [Wood Floor](https://polyhaven.com/a/wood_floor) | CC0 |
 | `polyhaven/modern_coffee_table_01/` | [Modern Coffee Table 01](https://polyhaven.com/a/modern_coffee_table_01) | CC0 |
 | `polyhaven/textures/tiles/long_white_tiles_*_2k.jpg` | [Long White Tiles](https://polyhaven.com/a/long_white_tiles) | CC0 |
 | `polyhaven/textures/marble/marble_01_*_1k.jpg` | [Marble 01](https://polyhaven.com/a/marble_01) | CC0 |

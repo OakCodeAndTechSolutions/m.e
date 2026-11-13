@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BoxGeometry, Group, Mesh, PerspectiveCamera, Raycaster, Scene } from 'three';
-import { boardControlTarget, registerRoomTarget, roomTargetAtView } from './room-target';
+import { BoxGeometry, Group, Mesh, PerspectiveCamera, Raycaster, Scene, Vector2 } from 'three';
+import {
+  boardControlTarget,
+  registerRoomTarget,
+  roomTargetAtPointer,
+  roomTargetAtView,
+} from './room-target';
 
 function fixture(parent: Scene | Group, y: number, z: number) {
   const mesh = new Mesh(new BoxGeometry(0.2, 0.2, 0.15));
@@ -11,6 +16,31 @@ function fixture(parent: Scene | Group, y: number, z: number) {
 }
 
 describe('shared room targets', () => {
+  it('operates the tapped control instead of the control in the centre of the camera', () => {
+    const scene = new Scene();
+    const camera = new PerspectiveCamera(64, 1, 0.01, 20);
+    const centre = fixture(scene, 0, -1);
+    const side = fixture(scene, 0, -1);
+    side.position.x = 0.4;
+    const activateCentre = vi.fn();
+    const activateSide = vi.fn();
+    registerRoomTarget(scene, centre, () => ({ activate: activateCentre, prompt: 'Centre' }));
+    registerRoomTarget(scene, side, () => ({ activate: activateSide, prompt: 'Side' }));
+    camera.updateMatrixWorld();
+    roomTargetAtPointer(
+      scene,
+      camera,
+      new Raycaster(),
+      new Vector2(0.64, 0),
+      new Vector2()
+    )?.activate();
+    expect(activateSide).toHaveBeenCalledOnce();
+    expect(activateCentre).not.toHaveBeenCalled();
+    expect(
+      roomTargetAtPointer(scene, camera, new Raycaster(), new Vector2(-0.8, 0), new Vector2())
+    ).toBeNull();
+  });
+
   it('uses the cabinet being looked at, even with a nearby cabinet on another shelf', () => {
     const scene = new Scene();
     const camera = new PerspectiveCamera(64, 16 / 9, 0.01, 20);

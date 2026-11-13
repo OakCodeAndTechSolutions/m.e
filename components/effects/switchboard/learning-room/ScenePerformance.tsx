@@ -12,7 +12,7 @@ export function ScenePerformance({ onDprChange }: { onDprChange: (dpr: number) =
   const { gl, invalidate } = useThree();
   const renderer = useRef(gl);
   const { play, traceCircuit } = useGameInput();
-  const { coverOpen } = useSwitchboard();
+  const { coverOpen, escutcheonRemoved, mainOn, rcboOn } = useSwitchboard();
   // Poll the loader store from the frame loop. Subscribing here would synchronously
   // set React state when a newly revealed useTexture starts loading during render.
   const loaded = useRef(0);
@@ -45,7 +45,19 @@ export function ScenePerformance({ onDprChange }: { onDprChange: (dpr: number) =
       window.clearTimeout(refresh);
       window.clearTimeout(settled);
     };
-  }, [gl, invalidate, play.fridgeOpen, play.openById, coverOpen, traceCircuit]);
+  }, [
+    gl,
+    invalidate,
+    play.fridgeOpen,
+    play.openById,
+    play.lightSwitchOn,
+    play.loungeDimmer,
+    coverOpen,
+    escutcheonRemoved,
+    mainOn,
+    rcboOn,
+    traceCircuit,
+  ]);
 
   useFrame((state, delta) => {
     const now = performance.now();

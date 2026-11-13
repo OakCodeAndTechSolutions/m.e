@@ -27,7 +27,8 @@ def linear(hex_color):
     return (*[v / 12.92 if v < .04045 else ((v + .055) / 1.055) ** 2.4 for v in srgb], 1)
 
 
-def material(name, color, roughness=.55, metal=0, texture=None, normal=None, normal_strength=.45):
+def material(name, color, roughness=.55, metal=0, texture=None, normal=None, normal_strength=.45,
+             roughness_map=None):
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
     mat.diffuse_color = linear(color)
@@ -49,14 +50,21 @@ def material(name, color, roughness=.55, metal=0, texture=None, normal=None, nor
             mat.node_tree.links.new(bump.outputs['Normal'], shader.inputs['Normal'])
         else:
             mat.node_tree.links.new(node.outputs['Color'], shader.inputs['Base Color'])
+    if roughness_map:
+        node = mat.node_tree.nodes.new('ShaderNodeTexImage')
+        node.image = bpy.data.images.load(str(MODELS / roughness_map), check_existing=True)
+        node.image.colorspace_settings.name = 'Non-Color'
+        mat.node_tree.links.new(node.outputs['Color'], shader.inputs['Roughness'])
     return mat
 
 
 WOOD = 'polyhaven/textures/oak-veneer/oak_veneer_01_'
 OAK = material('Satin quarter-cut oak', 'b48a61', .48, texture=WOOD + 'diff_1k.jpg',
                normal=WOOD + 'nor_gl_1k.jpg', normal_strength=.24)
-FLOOR = material('Satin Australian hardwood', 'b48a61', .43, texture=WOOD + 'diff_1k.jpg',
-                 normal=WOOD + 'nor_gl_1k.jpg', normal_strength=.13)
+FLOOR_PATH = 'polyhaven/textures/oak-floor/'
+FLOOR = material('Photographic satin oak flooring', 'b48a61', .48, texture=FLOOR_PATH + 'color.jpg',
+                 normal=FLOOR_PATH + 'normal.jpg', normal_strength=.35,
+                 roughness_map=FLOOR_PATH + 'roughness.jpg')
 STONE = material('Honed warm stone', 'd5c6b0', .54, texture='ambientcg/marble-015/color.jpg',
                  normal='ambientcg/marble-015/normal.jpg', normal_strength=.14)
 OLIVE = material('Matte olive laminate', '656c54', .73)
@@ -87,7 +95,10 @@ def woven_fabric(name, color):
                     normal_strength=.34)
 
 
-LINEN = woven_fabric('Oat basket-weave upholstery', 'c9bba8')
+FABRIC_PATH = 'polyhaven/textures/herringbone/'
+LINEN = material('Photographic wool herringbone', 'c9bba8', .91,
+                 texture=FABRIC_PATH + 'color.jpg', normal=FABRIC_PATH + 'normal.jpg',
+                 normal_strength=.45, roughness_map=FABRIC_PATH + 'roughness.jpg')
 RUST = woven_fabric('Clay scatter-cushion fabric', '9c654f')
 MOSS = woven_fabric('Moss scatter-cushion fabric', '6e7654')
 SEAM = material('Folded upholstery seam', 'a3917c', .94)
@@ -260,42 +271,13 @@ def chair():
 
 
 def hardwood_floor():
-    """Stagger the end joints and sample different grain for every board."""
-    rng = Random(23)
-    width, depth, board_width = 8.4, 7.0, .138
-    vertices, faces, texcoords, colors = [], [], [], []
-    for row in range(61):
-        x0, x1 = row * board_width, min((row + 1) * board_width, width)
-        z0 = 0
-        while z0 < depth - .001:
-            length = rng.uniform(.54, 1) if z0 == 0 else rng.uniform(1.05, 2.2)
-            z1 = min(depth, z0 + length)
-            if depth - z1 < .28:
-                z1 = depth
-            tint, warm = rng.uniform(.64, 1), rng.uniform(.92, 1)
-            u0, v0 = rng.random(), rng.random()
-            direction = rng.choice((-1, 1))
-            first = len(vertices)
-            for inset, y, shade in ((0, -.00045, .67), (.0007, 0, 1)):
-                for x, z in ((x0 + inset, z0 + inset), (x0 + inset, z1 - inset),
-                             (x1 - inset, z1 - inset), (x1 - inset, z0 + inset)):
-                    vertices.append(xyz((x, y, z)))
-                    texcoords.append((u0 + (x - x0) / .36, v0 + direction * (z - z0) / 1.35))
-                    colors.append((shade * tint, shade * tint * warm, shade * tint * warm ** 2, 1))
-            faces.extend((first + i, first + (i + 1) % 4, first + 4 + (i + 1) % 4,
-                          first + 4 + i) for i in range(4))
-            faces.append(tuple(range(first + 4, first + 8)))
-            z0 = z1
-    mesh = bpy.data.meshes.new('Staggered hardwood boards')
-    mesh.from_pydata(vertices, [], faces)
+    mesh = bpy.data.meshes.new('Photographic oak floor')
+    mesh.from_pydata([xyz(p) for p in ((0, 0, 0), (0, 0, 7), (8.4, 0, 7), (8.4, 0, 0))],
+                    [], [(0, 1, 2, 3)])
     mesh.update()
     uv = mesh.uv_layers.new()
-    for loop in mesh.loops:
-        uv.data[loop.index].uv = texcoords[loop.vertex_index]
-    tint = mesh.color_attributes.new(name='Board tones', type='FLOAT_COLOR', domain='POINT')
-    for vertex, color in zip(tint.data, colors):
-        vertex.color = color
-    mesh.color_attributes.active_color = tint
+    for index, point in enumerate(((0, 0), (0, 3.5), (4.2, 3.5), (4.2, 0))):
+        uv.data[index].uv = point
     obj = bpy.data.objects.new(mesh.name, mesh)
     bpy.context.collection.objects.link(obj)
     finish(obj, mesh.name, FLOOR)
@@ -363,21 +345,41 @@ def cushion(name, at, dims, mat, phase, rotation=(0, 0, 0), seam_mat=SEAM, wrink
 
 
 def sofa():
-    box('Low upholstered deck', (0, .175, 0), (2.68, .196, .89), LINEN, .039)
-    box('Inset shadow base', (0, .065, -.012), (2.57, .105, .79), BLACK, .019)
-    for x in (-1.12, 1.12):
-        for z in (-.32, .32):
-            rod('Timber foot', (x, .009, z), (x, .12, z), .036, FOOT_WOOD, .043)
-    for x in (-1.26, 1.26):
-        cushion('Padded arm with stitched welt', (x, .376, -.015), (.205, .37, .894), LINEN, x, wrinkles=.24)
-    box('Upholstered back shell', (0, .482, -.366), (2.48, .539, .16), LINEN, .044)
-    for i, x in enumerate((-.766, .001, .768)):
-        cushion('Crowned seat cushion', (x, .329, .065), (.752, .148, .716), LINEN, i * 1.38)
-        cushion('Leaning loose back cushion', (x, .569 + .005 * i, -.246), (.748, .167, .414),
-                LINEN, 1.4 + i * 1.9, rotation=(-1.40 + i * .028, 0, (i - 1) * .016))
-    for x, angle, mat in ((-.94, -.22, RUST), (.92, .26, MOSS)):
-        cushion('Soft woven scatter cushion', (x, .527, -.072), (.358, .122, .351), mat, x,
-                rotation=(-1.25, angle, .06), seam_mat=mat)
+    """Reupholster the attributed Modern Couch mesh while preserving its tailored silhouette."""
+    before = set(scene.objects)
+    bpy.ops.import_scene.gltf(filepath=str(MODELS / 'real/sofa-modern.glb'))
+    imported = set(scene.objects) - before
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in imported:
+        if obj.type != 'MESH':
+            continue
+        matrix = obj.matrix_world.copy()
+        obj.parent = None
+        obj.matrix_world = matrix
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        foot = 'wood' in obj.data.materials[0].name.lower()
+        obj.data.materials.clear()
+        obj.data.materials.append(FOOT_WOOD if foot else LINEN)
+        for vertex in obj.data.vertices:
+            vertex.co.y -= .0377
+            vertex.co.z -= .00014
+        if not foot:
+            uv = obj.data.uv_layers.active
+            for face in obj.data.polygons:
+                axis = max(range(3), key=lambda i: abs(face.normal[i]))
+                axes = [i for i in range(3) if i != axis]
+                for index in face.loop_indices:
+                    point = obj.data.vertices[obj.data.loops[index].vertex_index].co
+                    uv.data[index].uv = tuple(point[i] / .28 for i in axes)
+        obj.select_set(False)
+    for obj in imported:
+        if obj.type != 'MESH':
+            bpy.data.objects.remove(obj, do_unlink=True)
+    for x, angle, mat in ((-.93, -.14, RUST), (.92, .18, MOSS)):
+        cushion('Linen scatter cushion', (x, .576, -.14), (.34, .105, .33), mat, x,
+                rotation=(-1.26, angle, .04), seam_mat=mat)
 
 
 def coffee():
@@ -617,8 +619,10 @@ def export_asset(name, build, placement):
     bpy.ops.object.select_all(action='DESELECT')
     for obj in merged:
         obj.select_set(True)
+    image_format = 'JPEG' if name in ('sofa', 'hardwood-floor') else 'AUTO'
     bpy.ops.export_scene.gltf(filepath=str(OUTPUT / (name + '.glb')), export_format='GLB',
-                              use_selection=True, export_vertex_color='ACTIVE')
+                              use_selection=True, export_vertex_color='ACTIVE',
+                              export_image_format=image_format, export_image_quality=85)
     for obj in merged:
         bpy.data.objects.remove(obj, do_unlink=True)
     for obj in objects:

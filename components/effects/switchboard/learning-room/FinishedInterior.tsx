@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useMemo } from 'react';
+import { useCoarsePointer } from '@/lib/hooks';
 import { CanvasTexture, Object3D, SRGBColorSpace } from 'three';
 import { DiningSet } from './DiningSet';
 import { FRAME } from './exposed-wall';
@@ -185,6 +186,7 @@ function GardenView({ daylight }: { daylight: boolean }) {
 /** Warm 3000 K pool of light under a pair of downlights. */
 function DownlightPool({ z, level }: { z: number; level: number }) {
   const target = useMemo(() => new Object3D(), []);
+  const { coarse } = useCoarsePointer();
   return (
     <>
       <primitive object={target} position={[3.2, 0, z]} />
@@ -197,6 +199,12 @@ function DownlightPool({ z, level }: { z: number; level: number }) {
         distance={7}
         intensity={level * 14}
         color="#ffe2bd"
+        castShadow={level > 0}
+        shadow-mapSize={coarse ? [512, 512] : [1024, 1024]}
+        shadow-camera-near={0.08}
+        shadow-camera-far={7}
+        shadow-bias={-0.00015}
+        shadow-normalBias={0.006}
       />
     </>
   );
