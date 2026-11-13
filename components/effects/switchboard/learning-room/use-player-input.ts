@@ -257,7 +257,6 @@ export function usePlayerInput({
         return;
       }
       if (dragged) {
-        e.stopImmediatePropagation();
         window.setTimeout(() => setLookDragActive(false), 0);
         return;
       }
