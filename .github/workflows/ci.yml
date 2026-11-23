@@ -22,6 +22,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run lint
+      - run: npm exec -- next typegen
       - run: npm run type-check
       - run: npm test
       - run: npm audit --audit-level=high
